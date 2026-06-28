@@ -7,7 +7,10 @@ export const metadata: Metadata = { title: "Add Customer" };
 export default function NewCustomerPage() {
   return (
     <>
-      <TopBar title="Add Customer" backHref="/admin/customers" />
+      <TopBar breadcrumbs={[
+        { label: "Customers", href: "/admin/customers" },
+        { label: "Add Customer" },
+      ]} />
       <CustomerForm />
     </>
   );

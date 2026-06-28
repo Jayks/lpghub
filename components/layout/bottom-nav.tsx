@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  Home,
   LayoutDashboard,
   ShoppingCart,
   Users,
@@ -17,34 +18,45 @@ import { cn } from "@/lib/utils/cn";
 // ─── Nav config per persona ───────────────────────────────────────────────────
 
 const ADMIN_TABS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-  { href: "/admin/customers", label: "Customers", icon: Users },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin",            label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/orders",     label: "Orders",    icon: ShoppingCart },
+  { href: "/admin/customers",  label: "Customers", icon: Users },
+  { href: "/admin/payments",   label: "Payments",  icon: CreditCard, badge: true },
 ];
 
 const CUSTOMER_TABS = [
-  { href: "/", label: "Home", icon: LayoutDashboard, exact: true },
-  { href: "/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/",         label: "Home",     icon: Home,         exact: true },
+  { href: "/orders",   label: "Orders",   icon: ShoppingCart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const DELIVERY_TABS = [
-  { href: "/delivery", label: "Deliveries", icon: Truck, exact: true },
-  { href: "/delivery/settings", label: "Settings", icon: Settings },
+  { href: "/delivery",          label: "Deliveries", icon: Truck,    exact: true },
+  { href: "/delivery/settings", label: "Settings",   icon: Settings },
 ];
 
-type Tab = { href: string; label: string; icon: React.ElementType; exact?: boolean };
+type Tab = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  exact?: boolean;
+  /** If true, show urgentCount as a badge dot */
+  badge?: boolean;
+};
 
 function getTabs(pathname: string): Tab[] {
-  if (pathname.startsWith("/admin")) return ADMIN_TABS;
+  if (pathname.startsWith("/admin"))    return ADMIN_TABS;
   if (pathname.startsWith("/delivery")) return DELIVERY_TABS;
   return CUSTOMER_TABS;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BottomNav() {
+interface BottomNavProps {
+  urgentCount?: number;
+}
+
+export function BottomNav({ urgentCount = 0 }: BottomNavProps) {
   const pathname = usePathname();
   const tabs = getTabs(pathname);
 
@@ -57,6 +69,7 @@ export function BottomNav() {
         {tabs.map((tab) => {
           const active = isNavItemActive(pathname, tab.href, tab.exact);
           const Icon = tab.icon;
+          const showBadge = tab.badge && urgentCount > 0;
           return (
             <Link
               key={tab.href}
@@ -70,14 +83,21 @@ export function BottomNav() {
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
               )}
-              <Icon
-                className={cn(
-                  "w-5 h-5 relative z-10 transition-colors",
-                  active
-                    ? "text-cyan-600 dark:text-cyan-400"
-                    : "text-slate-400 dark:text-slate-500"
+              <span className="relative">
+                <Icon
+                  className={cn(
+                    "w-5 h-5 relative z-10 transition-colors",
+                    active
+                      ? "text-cyan-600 dark:text-cyan-400"
+                      : "text-slate-400 dark:text-slate-500"
+                  )}
+                />
+                {showBadge && (
+                  <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none z-20">
+                    {urgentCount > 9 ? "9+" : urgentCount}
+                  </span>
                 )}
-              />
+              </span>
               <span
                 className={cn(
                   "text-[10px] font-medium relative z-10 transition-colors",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveSettingsAction } from "@/app/actions/settings";
@@ -13,6 +13,10 @@ interface Props {
 export function SettingsForm({ initial }: Props) {
   const [values, setValues] = useState<SettingsMap>({ ...initial });
   const [pending, startTransition] = useTransition();
+
+  // Refs for keyboard navigation
+  const depositRef  = useRef<HTMLInputElement>(null);
+  const thresholdRef = useRef<HTMLInputElement>(null);
 
   function set(key: keyof SettingsMap, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -44,9 +48,13 @@ export function SettingsForm({ initial }: Props) {
           </label>
           <input
             type="number"
+            inputMode="numeric"
             min={1}
             value={values.max_cylinders_per_order}
             onChange={(e) => set("max_cylinders_per_order", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); depositRef.current?.focus(); }
+            }}
             disabled={pending}
             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 disabled:opacity-60"
           />
@@ -60,10 +68,15 @@ export function SettingsForm({ initial }: Props) {
             Default Caution Deposit (₹)
           </label>
           <input
+            ref={depositRef}
             type="number"
+            inputMode="decimal"
             min={0}
             value={values.caution_deposit_amount}
             onChange={(e) => set("caution_deposit_amount", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); thresholdRef.current?.focus(); }
+            }}
             disabled={pending}
             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 disabled:opacity-60"
           />
@@ -77,10 +90,15 @@ export function SettingsForm({ initial }: Props) {
             Low Stock Alert Threshold
           </label>
           <input
+            ref={thresholdRef}
             type="number"
+            inputMode="numeric"
             min={0}
             value={values.low_stock_threshold}
             onChange={(e) => set("low_stock_threshold", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); handleSave(); }
+            }}
             disabled={pending}
             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 disabled:opacity-60"
           />

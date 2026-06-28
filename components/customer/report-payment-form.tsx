@@ -52,8 +52,11 @@ export function ReportPaymentForm({ orderId, alreadyReported }: Props) {
           type="text"
           value={ref}
           onChange={(e) => setRef(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
           placeholder="UPI transaction ID (optional)"
           disabled={pending}
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          autoFocus
           className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
         />
         <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 px-1">

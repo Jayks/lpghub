@@ -28,13 +28,16 @@ Root layout wrapper for all authenticated personas. Renders the correct navigati
 
 Usage: wrap every authenticated layout group with `<AppShell>`.
 
+**`<main>` has `overflow-x-hidden`** — prevents any negative-margin tricks (e.g. filter pill containers) from causing page-level horizontal scroll. Do not remove this.
+
 ### `Sidebar`
-Desktop navigation. Structure:
-- Logo (links to persona home)
-- Primary nav links (role-aware)
-- Separator
-- Secondary nav links
-- Avatar + `ThemeToggle` pinned at bottom
+Desktop navigation. Collapsible rail — animates between 14rem (expanded) and 4rem (collapsed) via Framer Motion. Collapse state persisted in `localStorage` key `lpghub-sidebar-collapsed`.
+
+Structure:
+- **Logo row**: expanded = `[logo][LPGHub text][◀ collapse button]`; collapsed = `[logo][▶ expand button]`. Logo always visible.
+- Primary nav links (role-aware). Admin nav: Home, Customers, Inventory, Orders, Payments (badge), Deliveries (badge), Settings.
+- `ThemeToggle` + `SignOutButton` pinned at bottom. Labels are `text-xs text-slate-400` (subtle, smaller than nav items). Use `gap-2.5` on ThemeToggle, no `ml-*` on the inner span.
+- Badge props: `urgentCount` (payments), `deliveryUrgentCount` (unassigned confirmed orders). Both threaded from `getAdminUrgentCounts()` in admin layout.
 
 Uses `isNavItemActive(pathname, href, exact?)` from `lib/utils/nav.ts`.
 
@@ -44,9 +47,12 @@ Mobile tab bar. 3–4 tabs per persona. Active state uses a Framer Motion spring
 **Home tab always uses `exact: true`** in `isNavItemActive`.
 
 ### `TopBar`
-Mobile top bar. Contains page title (passed as prop), back button (where applicable), and overflow menu.
+Mobile top bar (and desktop breadcrumb strip). Props: `title`, `backHref`, `breadcrumbs?: BreadcrumbItem[]`, `actions`.
 
-`BackButton` always uses `router.push(href)` — **never `router.back()`** — for deterministic navigation history.
+- When `breadcrumbs` provided: renders trail with ChevronRight separators. Last item bold, parents muted links.
+- `resolvedBackHref` auto-derived from `breadcrumbs[length-2].href` — no need to pass `backHref` separately when using breadcrumbs.
+- Back button uses `router.push(resolvedBackHref)` — **never `router.back()`** — for deterministic history.
+- All nested admin pages use `<TopBar breadcrumbs={[...]} />` instead of a separate breadcrumb component.
 
 ### `ThemeToggle`
 Light / Dark / System toggle. Uses `next-themes`. Renders as an icon button in the sidebar footer.
@@ -100,6 +106,16 @@ Icon button that copies text to clipboard. Flips icon to checkmark for 2 seconds
 ### `CustomerForm`
 react-hook-form + zodResolver form for customer onboarding. Fields: businessName, contactPerson, phone, address, eligibilityLimit, cautionDeposit (amount, paidOn, paymentMode, referenceNo). Calls `createCustomer` server action.
 
+**Keyboard UX:** `autoFocus` on Business Name. Enter advances field-to-field: name → contact → phone → address → eligibility → deposit amount → date → mode → ref → notes → submit. Address is a textarea — Enter adds a line break; Tab advances. Number fields use `inputMode="numeric"` / `inputMode="decimal"`.
+
+### `EditCustomerForm`
+Pre-populated edit form for an existing customer. Fields: businessName, contactPerson, address, eligibilityLimit. Phone is shown read-only (auth identity — cannot be changed here). Calls `updateCustomer` server action; on success calls `router.back()`.
+
+**Keyboard UX:** `autoFocus` on Business Name. Enter chain: name → contact → (Tab through address textarea) → eligibility → submit. Same `inputMode` attributes as `CustomerForm`.
+
+### `CustomerActiveToggle`
+Client component. Pill button that toggles a customer's `isActive` flag inline on the customer detail page. Calls `toggleCustomerActive` server action. Label shows current state and invite: *"Active · tap to deactivate"* / *"Inactive · tap to activate"*. Used on `/admin/customers/[id]`.
+
 ### `AdjustStockForm`
 Inline form per cylinder type on the inventory page. Fields: delta (positive or negative), reason. Calls `adjustInventory` server action. Validates that delta doesn't push `available_stock` negative.
 
@@ -107,19 +123,30 @@ Inline form per cylinder type on the inventory page. Fields: delta (positive or 
 Dropdown of active delivery persons + submit. Calls `assignDelivery` server action. Rendered inside the admin order detail page.
 
 ### `OrderFilterPills`
-Client component. Renders pill buttons for order status filters. Updates `?filter=` searchParam without full navigation (`router.replace`). The admin orders page reads `searchParams.filter` server-side to query the right statuses.
+Client component. Renders pill buttons for order status filters. Uses `flex-wrap` so all pills are always visible (no horizontal scroll). Updates `?filter=` searchParam via `router.push`. The admin orders page reads `searchParams.filter` server-side to query the right statuses.
+
+### `OrderSearchBar`
+Client component. Lives above `OrderFilterPills` on the admin orders page. Two controls:
+- **Search input** (type="search") — debounced 400ms, updates `?q=` param. Matches business name (`ilike`) OR exact order number (strips "ORD-" prefix). Uses `parseOrderSearch()` pure helper.
+- **Date range** — two `type="date"` inputs updating `?from=` and `?to=` params immediately on change.
+- **Clear button** — appears when any search/date param is active. Removes `q`, `from`, `to` but leaves `?filter=` (status pill) untouched.
+
+Both live in one `<Suspense>` boundary on the orders page (both use `useSearchParams`).
 
 ### `PaymentActionButtons`
 Confirm / Reject buttons on the pending payment queue. Each button calls the respective server action, shows a loading spinner, and displays a sonner toast on result.
 
 ### `SettingsForm`
-Key-value form for `admin_settings` table. Each field corresponds to a known settings key. Calls `updateSetting` per field on blur.
+Key-value form for `admin_settings` table. Each field corresponds to a known settings key. Calls `saveSettings` server action on the Save button (single save for all fields). Number inputs use `inputMode="numeric"` / `inputMode="decimal"`. Enter navigates: max cylinders → deposit amount → threshold → save.
 
 ### `DeliveryPersonToggle`
-Toggle switch to mark a delivery person active/inactive. Calls `toggleDeliveryPersonActive` server action. Renders in the delivery team panel.
+Toggle switch to mark a delivery person active/inactive. Calls `toggleDeliveryPersonActive` server action. Renders in the delivery team panel on `/admin/deliveries`.
 
 ### `AddDeliveryPersonForm`
-react-hook-form form: name, phone. Calls `createDeliveryPerson` server action.
+Form: name, phone. Calls `addDeliveryPerson` server action. **Keyboard UX:** `autoFocus` on name; Enter on name → focuses phone; Enter on phone → submits.
+
+### `EditDeliveryPersonForm`
+Pre-populated edit form for a delivery person. Fields: name only. Phone shown read-only (auth identity — cannot be changed here). Calls `updateDeliveryPerson` server action; on success calls `router.back()`. **Keyboard UX:** `autoFocus` on name; Enter submits.
 
 ---
 
@@ -132,7 +159,7 @@ The booking form. Reads live inventory and the customer's eligibility limit from
 Danger button rendered on the order detail page for orders in `pending_payment` or `payment_pending_confirmation` status. Calls `cancelOrder` server action. Shows a confirmation dialog before proceeding.
 
 ### `ReportPaymentForm`
-Short form on the payment page: payment reference ID input + submit. Calls `reportPayment` server action, which moves the order to `payment_pending_confirmation`.
+Short form on the payment page: payment reference ID input + submit. Calls `reportPayment` server action, which moves the order to `payment_pending_confirmation`. **Keyboard UX:** `autoFocus` on the ref input; Enter submits.
 
 ---
 
@@ -150,13 +177,15 @@ Delivered status takes effect immediately — no admin confirmation needed. Capt
 ## Auth Components — `components/auth/`
 
 ### `LoginForm`
-Three-tab form: Customer | Delivery | Admin.
-- Customer + Delivery tabs: phone input → OTP input (appears after `sendOtp` succeeds)
-- Admin tab: email + password
+Role card selector (Customer / Delivery / Admin) with icon + label. Selecting a card switches the form below it.
+- Customer + Delivery cards: phone input → 6 split OTP digit boxes (auto-submit on 6th digit; auto-sends OTP when 10 digits entered; 30 s resend countdown; Enter key supported)
+- Admin card: email + password (Enter on email → focuses password; Enter on password → submits)
+- **Focus:** `useEffect` auto-focuses the first field whenever the tab changes (phone for Customer/Delivery; email for Admin)
 
 In test mode (`NEXT_PUBLIC_TEST_MODE=true`):
 - Shows test credentials inline
-- OTP input pre-filled with `123456`
+- Customer phone pre-filled: `9876543210`; Delivery phone pre-filled: `9999900001`; switches automatically when changing role
+- OTP is accepted as `123456` for any number
 
 ---
 

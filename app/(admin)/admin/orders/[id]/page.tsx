@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TopBar } from "@/components/layout/top-bar";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PageWrapper } from "@/components/shared/page-wrapper";
 import { MapPin, Phone, User } from "lucide-react";
 import type { OrderStatus } from "@/components/shared/status-badge";
 import { getAdminOrderDetail } from "@/lib/db/queries/admin-order-detail";
 import { PaymentActionButtons } from "@/components/admin/payment-action-buttons";
+import { formatCurrency } from "@/lib/utils/format-currency";
 import { formatDateTime, formatDate } from "@/lib/utils/format-date";
 import { formatOrderNumber } from "@/lib/utils/format-order-number";
 
@@ -13,20 +15,32 @@ export const metadata: Metadata = { title: "Order Detail" };
 
 export default async function AdminOrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { from }] = await Promise.all([params, searchParams]);
   const order = await getAdminOrderDetail(id);
   if (!order) notFound();
 
   const canConfirmPayment =
     order.status === "payment_pending_confirmation" && !!order.payment;
 
+  const parentCrumb =
+    from === "payments"
+      ? { label: "Payments", href: "/admin/payments" }
+      : from === "deliveries"
+      ? { label: "Deliveries", href: "/admin/deliveries" }
+      : { label: "Orders", href: "/admin/orders" };
+
   return (
     <>
-      <TopBar title="Order Detail" backHref="/admin/orders" />
-      <div className="flex-1 p-4 space-y-4">
+      <TopBar breadcrumbs={[
+        parentCrumb,
+        { label: formatOrderNumber(order.orderNumber) },
+      ]} />
+      <PageWrapper className="flex-1 p-4 space-y-4">
 
         {/* Order summary */}
         <div className="glass rounded-2xl p-5 space-y-3">
@@ -50,14 +64,14 @@ export default async function AdminOrderDetailPage({
                   {l.label} × {l.quantity}
                 </span>
                 <span className="font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
-                  ₹{(Number(l.unitPrice) * l.quantity).toLocaleString("en-IN")}
+                  {formatCurrency(Number(l.unitPrice) * l.quantity)}
                 </span>
               </div>
             ))}
             <div className="flex justify-between text-sm font-bold border-t border-slate-100 dark:border-slate-800 pt-1.5">
               <span className="text-slate-900 dark:text-slate-50">Total</span>
               <span className="text-slate-900 dark:text-slate-50 tabular-nums">
-                ₹{Number(order.totalAmount).toLocaleString("en-IN")}
+                {formatCurrency(order.totalAmount)}
               </span>
             </div>
           </div>
@@ -116,7 +130,7 @@ export default async function AdminOrderDetailPage({
               <div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Amount</p>
                 <p className="font-bold text-slate-900 dark:text-slate-50 tabular-nums">
-                  ₹{Number(order.totalAmount).toLocaleString("en-IN")}
+                  {formatCurrency(order.totalAmount)}
                 </p>
               </div>
               {order.payment.paymentRef && (
@@ -201,7 +215,7 @@ export default async function AdminOrderDetailPage({
             </p>
           )}
         </div>
-      </div>
+      </PageWrapper>
     </>
   );
 }

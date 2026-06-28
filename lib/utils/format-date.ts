@@ -23,3 +23,11 @@ export function formatRelative(date: string | Date): string {
   const d = typeof date === "string" ? parseISO(date) : date;
   return formatDistanceToNow(d, { addSuffix: true });
 }
+
+/**
+ * Format just the time portion, e.g. "3:42 PM".
+ */
+export function formatTime(date: string | Date): string {
+  const d = typeof date === "string" ? parseISO(date) : date;
+  return format(d, "h:mm a");
+}

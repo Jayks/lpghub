@@ -7,7 +7,10 @@ export const metadata: Metadata = { title: "Add Delivery Person" };
 export default function AddDeliveryPersonPage() {
   return (
     <>
-      <TopBar title="Add Delivery Person" backHref="/admin/deliveries" />
+      <TopBar breadcrumbs={[
+        { label: "Deliveries", href: "/admin/deliveries" },
+        { label: "Add Delivery Person" },
+      ]} />
       <div className="flex-1 p-4">
         <div className="glass rounded-2xl p-5">
           <AddDeliveryPersonForm />

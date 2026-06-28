@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createCustomerSchema } from "./customer";
+import { createCustomerSchema, updateCustomerSchema } from "./customer";
 
 const VALID_BASE = {
   businessName: "Sunrise Bakery",
@@ -196,5 +196,130 @@ describe("createCustomerSchema — deposit amount", () => {
     const result = createCustomerSchema.safeParse({ ...VALID_BASE, depositAmount: "5000" });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.depositAmount).toBe(5000);
+  });
+});
+
+// ─── updateCustomerSchema ─────────────────────────────────────────────────────
+// Phone is intentionally absent — it is the OTP login identity and cannot be
+// changed through this schema.
+
+const VALID_UPDATE = {
+  businessName:     "Sunrise Bakery",
+  contactPerson:    "Ravi Kumar",
+  address:          "123, Market Street, Chennai",
+  eligibilityLimit: 5,
+};
+
+describe("updateCustomerSchema — valid inputs", () => {
+  it("accepts a fully valid update payload", () => {
+    const result = updateCustomerSchema.safeParse(VALID_UPDATE);
+    expect(result.success).toBe(true);
+  });
+
+  it("does NOT include phone in the output (phone is not part of this schema)", () => {
+    const withPhone = { ...VALID_UPDATE, phone: "9876543210" };
+    const result = updateCustomerSchema.safeParse(withPhone);
+    // Extra fields are stripped by Zod by default — parse still succeeds
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect("phone" in result.data).toBe(false);
+    }
+  });
+
+  it("coerces string eligibilityLimit to number", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: "8" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.eligibilityLimit).toBe(8);
+  });
+});
+
+describe("updateCustomerSchema — required field validation", () => {
+  it("rejects empty businessName", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, businessName: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing businessName", () => {
+    const { businessName: _, ...rest } = VALID_UPDATE;
+    const result = updateCustomerSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects empty contactPerson", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, contactPerson: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing contactPerson", () => {
+    const { contactPerson: _, ...rest } = VALID_UPDATE;
+    const result = updateCustomerSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects address shorter than 5 characters", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, address: "Home" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts address with exactly 5 characters (minimum boundary)", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, address: "12345" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing address", () => {
+    const { address: _, ...rest } = VALID_UPDATE;
+    const result = updateCustomerSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateCustomerSchema — eligibilityLimit boundaries", () => {
+  it("accepts minimum eligibilityLimit of 1", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: 1 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.eligibilityLimit).toBe(1);
+  });
+
+  it("accepts maximum eligibilityLimit of 50", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: 50 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.eligibilityLimit).toBe(50);
+  });
+
+  it("rejects eligibilityLimit of 0", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: 0 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects eligibilityLimit of 51", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: 51 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative eligibilityLimit", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: -1 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer eligibilityLimit", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: 4.5 });
+    expect(result.success).toBe(false);
+  });
+
+  it("coerces string '50' to number 50 at boundary (should pass)", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: "50" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.eligibilityLimit).toBe(50);
+  });
+
+  it("coerces string '51' to number 51, exceeds boundary (should fail)", () => {
+    const result = updateCustomerSchema.safeParse({ ...VALID_UPDATE, eligibilityLimit: "51" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing eligibilityLimit", () => {
+    const { eligibilityLimit: _, ...rest } = VALID_UPDATE;
+    const result = updateCustomerSchema.safeParse(rest);
+    expect(result.success).toBe(false);
   });
 });

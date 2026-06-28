@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import pgClient from "@/lib/db/client";
 import { payments, orders, customers, orderLineItems, cylinderTypes } from "@/lib/db/schema";
@@ -35,6 +35,68 @@ export async function getPendingPayments(): Promise<PendingPaymentRow[]> {
     .innerJoin(customers, eq(orders.customerId,   customers.id))
     .where(eq(orders.status, "payment_pending_confirmation"))
     .orderBy(desc(payments.createdAt));
+}
+
+// ─── Admin view — orders awaiting customer payment ───────────────────────────
+
+export type AwaitingPaymentRow = {
+  orderId: string;
+  orderNumber: number;
+  amount: string;
+  businessName: string;
+  phone: string;
+  createdAt: Date | null;
+};
+
+export async function getAwaitingPaymentOrders(): Promise<AwaitingPaymentRow[]> {
+  return db
+    .select({
+      orderId:      orders.id,
+      orderNumber:  orders.orderNumber,
+      amount:       orders.totalAmount,
+      businessName: customers.businessName,
+      phone:        customers.phone,
+      createdAt:    orders.createdAt,
+    })
+    .from(orders)
+    .innerJoin(customers, eq(orders.customerId, customers.id))
+    .where(eq(orders.status, "pending_payment"))
+    .orderBy(desc(orders.createdAt));
+}
+
+// ─── Admin view — payment history (confirmed + rejected) ─────────────────────
+
+export type PaymentHistoryRow = {
+  paymentId: string;
+  orderId: string;
+  orderNumber: number;
+  amount: string;
+  paymentRef: string | null;
+  businessName: string;
+  status: "confirmed" | "rejected";
+  resolvedAt: Date | null;
+};
+
+export async function getPaymentHistory(limit = 60): Promise<PaymentHistoryRow[]> {
+  const rows = await db
+    .select({
+      paymentId:    payments.id,
+      orderId:      payments.orderId,
+      orderNumber:  orders.orderNumber,
+      amount:       payments.amount,
+      paymentRef:   payments.paymentRef,
+      businessName: customers.businessName,
+      status:       payments.status,
+      resolvedAt:   payments.adminConfirmedAt,
+    })
+    .from(payments)
+    .innerJoin(orders,    eq(payments.orderId,  orders.id))
+    .innerJoin(customers, eq(orders.customerId, customers.id))
+    .where(inArray(payments.status, ["confirmed", "rejected"]))
+    .orderBy(desc(payments.adminConfirmedAt))
+    .limit(limit);
+
+  return rows as PaymentHistoryRow[];
 }
 
 // ─── Customer view — single order payment details ─────────────────────────────

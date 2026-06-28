@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TopBar } from "@/components/layout/top-bar";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PageWrapper } from "@/components/shared/page-wrapper";
+import { EmptyState } from "@/components/shared/empty-state";
 import { getCurrentUser } from "@/lib/db/queries/auth";
 import { getCustomerForUser } from "@/lib/db/queries/customers";
 import { getCustomerOrders } from "@/lib/db/queries/customer-orders";
 import { formatCurrency } from "@/lib/utils/format-currency";
 import { formatDate } from "@/lib/utils/format-date";
 import { formatOrderNumber } from "@/lib/utils/format-order-number";
-import { ShoppingCart, Clock, ChevronRight } from "lucide-react";
+import { ShoppingCart, ChevronRight, Clock } from "lucide-react";
 import type { OrderStatus } from "@/components/shared/status-badge";
 
 export const metadata: Metadata = { title: "Home" };
@@ -32,7 +34,7 @@ export default async function CustomerHomePage() {
   return (
     <>
       <TopBar title="LPGHub" />
-      <div className="flex-1 p-4 space-y-6 pb-safe-nav">
+      <PageWrapper className="flex-1 p-4 space-y-6 pb-safe-nav">
 
         {/* Greeting */}
         <div>
@@ -57,14 +59,11 @@ export default async function CustomerHomePage() {
             Book Cylinders
           </Link>
         ) : (
-          <div className="glass-sm rounded-2xl p-4 text-center space-y-1">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Account not linked
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Contact your agency admin to activate your account.
-            </p>
-          </div>
+          <EmptyState
+            icon={ShoppingCart}
+            title="Account not linked"
+            description="Contact your agency admin to activate your account."
+          />
         )}
 
         {/* Recent orders */}
@@ -84,12 +83,12 @@ export default async function CustomerHomePage() {
           </div>
 
           {recentOrders.length === 0 ? (
-            <div className="glass-sm rounded-2xl p-6 text-center space-y-2">
-              <Clock className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {customer ? "No orders yet — tap Book Cylinders to get started" : "Your orders will appear here"}
-              </p>
-            </div>
+            <EmptyState
+              icon={Clock}
+              title="No orders yet"
+              description={customer ? "Tap Book Cylinders above to get started." : "Your orders will appear here."}
+              compact
+            />
           ) : (
             <div className="space-y-2">
               {recentOrders.map((order) => (
@@ -121,7 +120,7 @@ export default async function CustomerHomePage() {
             </div>
           )}
         </section>
-      </div>
+      </PageWrapper>
     </>
   );
 }

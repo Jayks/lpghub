@@ -28,23 +28,25 @@ The app uses Next.js route groups to co-locate layouts, loading states, and erro
 
 | File | URL | What it renders |
 |---|---|---|
-| `page.tsx` | `/admin` | KPI cards (active customers, pending payments, total orders, low stock items); low stock alert list; quick-action links |
+| `page.tsx` | `/admin` | 4 section-card dashboard: **Needs Attention** (payments to confirm, awaiting assignment, awaiting customer payment, active deliveries, low stock alerts), **Today** (delivered, revenue, active customers, total orders), **This Month** (revenue + last-month trend + pending revenue, orders, new customers, delivered), **Inventory** (colour-coded segmented bars per cylinder type using `computeInventoryBar`). Each section is a `glass` card with a coloured stripe header. No Quick Actions section — action cards link directly. |
 | `customers/page.tsx` | `/admin/customers` | Paginated customer list with avatar, active badge, chevron → detail |
 | `customers/new/page.tsx` | `/admin/customers/new` | `CustomerForm` for manual onboarding + caution deposit |
-| `customers/[id]/page.tsx` | `/admin/customers/[id]` | Customer detail: info, caution deposit, order history |
-| `orders/page.tsx` | `/admin/orders` | Filterable order list; uses `OrderFilterPills` client component + `searchParams` |
-| `orders/[id]/page.tsx` | `/admin/orders/[id]` | Order detail via `getAdminOrderDetail`; payment actions; assignment form |
-| `payments/page.tsx` | `/admin/payments` | Payment confirmation queue; `PaymentActionButtons` (confirm / reject) |
+| `customers/[id]/page.tsx` | `/admin/customers/[id]` | Customer detail: info (with inline active/inactive toggle via `CustomerActiveToggle`), Edit button → edit page, caution deposit, order history |
+| `customers/[id]/edit/page.tsx` | `/admin/customers/[id]/edit` | `EditCustomerForm` pre-populated from DB; phone read-only |
+| `orders/page.tsx` | `/admin/orders` | Filterable + searchable order list. Reads `?filter=`, `?q=`, `?from=`, `?to=` from searchParams. Renders `OrderSearchBar` + `OrderFilterPills` in a shared `Suspense`. Card layout: two rows (order# + badge on row 1; customer + date + amount on row 2) so amount never clips. |
+| `orders/[id]/page.tsx` | `/admin/orders/[id]` | Order detail via `getAdminOrderDetail`; payment actions; assignment form. Reads `?from=payments\|deliveries` to set correct parent breadcrumb (defaults to Orders). Links from payments/deliveries pages must append this param. |
+| `payments/page.tsx` | `/admin/payments` | Three sections: **Pending Confirmation** (PaymentActionButtons), **Awaiting Customer Payment** (informational, links to order), **Payment History** (single desktop table — Status/Customer/Order/UPI Ref/Amount/Date columns; mobile card fallback). All order links append `?from=payments`. |
 | `inventory/page.tsx` | `/admin/inventory` | Stock cards per cylinder type; `AdjustStockForm`; recent adjustments log |
 | `deliveries/page.tsx` | `/admin/deliveries` | Three panels: unassigned orders, in-progress deliveries, delivery team toggle |
 | `deliveries/persons/new/page.tsx` | `/admin/deliveries/persons/new` | Add delivery person form |
+| `deliveries/persons/[id]/edit/page.tsx` | `/admin/deliveries/persons/[id]/edit` | `EditDeliveryPersonForm`; phone read-only |
 | `settings/page.tsx` | `/admin/settings` | `SettingsForm` (global config) + `NotificationToggle` |
 
 ### Auth — `app/(auth)/`
 
 | File | URL | What it renders |
 |---|---|---|
-| `login/page.tsx` | `/login` | Three-tab login: Customer (phone OTP), Delivery (phone OTP), Admin (email+password). Uses `LoginForm` client component. |
+| `login/page.tsx` | `/login` | Role card selector login: Customer (phone OTP), Delivery (phone OTP), Admin (email+password). Uses `LoginForm` client component. |
 
 ### Customer — `app/(customer)/`
 
@@ -74,9 +76,9 @@ All actions follow the shared return shape: `{ ok: true, data?: T }` or `{ ok: f
 | File | Key actions |
 |---|---|
 | `auth.ts` | `sendOtp`, `verifyOtp`, `adminSignIn`, `signOut` |
-| `customers.ts` | `createCustomer`, `updateCustomer`, `toggleCustomerActive` |
+| `customers.ts` | `createCustomerAction`, `updateCustomerAction`, `toggleCustomerActiveAction` |
 | `deliveries.ts` | `assignDelivery`, `updateDeliveryStatus` (dispatch / delivered) |
-| `delivery-persons.ts` | `createDeliveryPerson`, `toggleDeliveryPersonActive` |
+| `delivery-persons.ts` | `addDeliveryPersonAction`, `updateDeliveryPersonAction`, `toggleDeliveryPersonAction` |
 | `inventory.ts` | `adjustInventory` |
 | `orders.ts` | `createOrder`, `cancelOrder` |
 | `payments.ts` | `reportPayment`, `confirmPayment`, `rejectPayment` |

@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { TopBar } from "@/components/layout/top-bar";
 import { Smartphone } from "lucide-react";
 import { CopyButton } from "@/components/shared/copy-button";
+import { PageWrapper } from "@/components/shared/page-wrapper";
 import { getOrderPaymentDetail } from "@/lib/db/queries/payments";
 import { ReportPaymentForm } from "@/components/customer/report-payment-form";
+import { formatCurrency } from "@/lib/utils/format-currency";
 
 export const metadata: Metadata = { title: "Payment" };
 
-const UPI_VPA = process.env.NEXT_PUBLIC_UPI_VPA ?? "agency@upi";
+const UPI_VPA      = process.env.NEXT_PUBLIC_UPI_VPA      ?? "agency@upi";
 const UPI_MERCHANT = process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME ?? "LPGHub";
 
 function buildUpiLink(orderId: string, amount: string): string {
@@ -17,7 +20,7 @@ function buildUpiLink(orderId: string, amount: string): string {
     pn:  UPI_MERCHANT,
     am:  amount,
     tr:  orderId,
-    tn:  `LPGHub Order`,
+    tn:  "LPGHub Order",
     cu:  "INR",
   });
   return `upi://pay?${params.toString()}`;
@@ -38,10 +41,18 @@ export default async function PaymentPage({
 
   if (!detail) notFound();
 
-  const amount = Number(detail.totalAmount);
+  const amount    = Number(detail.totalAmount);
   const amountStr = amount.toFixed(2);
-  const gpayLink = buildGpayLink(orderId, amountStr);
-  const upiLink  = buildUpiLink(orderId, amountStr);
+  const gpayLink  = buildGpayLink(orderId, amountStr);
+  const upiLink   = buildUpiLink(orderId, amountStr);
+
+  // Generate QR code as base64 data URL (server-side — no client bundle impact)
+  const qrDataUrl = await QRCode.toDataURL(upiLink, {
+    width:  200,
+    margin: 2,
+    color:  { dark: "#0F172A", light: "#FFFFFF" },
+    errorCorrectionLevel: "M",
+  });
 
   const alreadyReported = detail.orderStatus === "payment_pending_confirmation";
   const isPaid = ["confirmed", "assigned", "out_for_delivery", "delivered"].includes(
@@ -56,13 +67,13 @@ export default async function PaymentPage({
   return (
     <>
       <TopBar title="Pay for Order" backHref="/orders" />
-      <div className="flex-1 p-4 space-y-5">
+      <PageWrapper className="flex-1 p-4 space-y-5">
 
         {/* Amount card */}
         <div className="glass rounded-3xl p-6 text-center space-y-1">
           <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Amount to pay</p>
           <p className="text-4xl font-bold text-slate-900 dark:text-slate-50 tabular-nums">
-            ₹{amount.toLocaleString("en-IN")}
+            {formatCurrency(amount)}
           </p>
           <p className="text-xs font-medium text-slate-500 dark:text-slate-500">
             {detail.businessName}{linesSummary ? ` · ${linesSummary}` : ""}
@@ -83,20 +94,22 @@ export default async function PaymentPage({
             {/* GPay button */}
             <a
               href={gpayLink}
-              className="block w-full py-4 rounded-2xl font-bold text-white bg-gradient-to-br from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 transition-all shadow-sm text-center flex items-center justify-center gap-2"
+              className="flex w-full py-4 rounded-2xl font-bold text-white bg-gradient-to-br from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 transition-all shadow-sm text-center items-center justify-center gap-2"
             >
               <Smartphone className="w-5 h-5" />
               Pay with Google Pay
             </a>
 
             {/* Manual UPI */}
-            <div className="glass-sm rounded-2xl p-4 space-y-3">
+            <div className="glass-sm rounded-2xl p-5 space-y-4">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                Or pay manually
+                Or pay manually via UPI
               </p>
+
+              {/* UPI VPA row */}
               <div className="flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">UPI VPA</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">UPI ID</p>
                   <p className="text-sm font-mono font-bold text-slate-900 dark:text-slate-50">
                     {UPI_VPA}
                   </p>
@@ -104,22 +117,29 @@ export default async function PaymentPage({
                 <CopyButton text={UPI_VPA} />
               </div>
 
-              {/* QR placeholder */}
-              <div className="w-40 h-40 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 text-center px-4">
-                  QR Code<br />will appear here
+              {/* Real QR code */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-44 h-44 rounded-2xl bg-white border border-slate-200 dark:border-slate-700 flex items-center justify-center p-2 shadow-inner">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrDataUrl}
+                    alt="UPI QR code"
+                    className="w-full h-full rounded-xl"
+                    width={160}
+                    height={160}
+                  />
+                </div>
+                <p className="text-xs text-center font-medium text-slate-500 dark:text-slate-400">
+                  Scan with any UPI app (PhonePe, Paytm, BHIM, Google Pay)
                 </p>
               </div>
-              <p className="text-xs text-center font-medium text-slate-500 dark:text-slate-400">
-                Scan with any UPI app (PhonePe, Paytm, BHIM, Google Pay)
-              </p>
             </div>
 
             {/* Report payment */}
             <ReportPaymentForm orderId={orderId} alreadyReported={alreadyReported} />
           </>
         )}
-      </div>
+      </PageWrapper>
     </>
   );
 }

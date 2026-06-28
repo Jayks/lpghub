@@ -3,25 +3,28 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { TopBar } from "@/components/layout/top-bar";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { PageWrapper } from "@/components/shared/page-wrapper";
+import { Check, Clock } from "lucide-react";
 import type { OrderStatus } from "@/components/shared/status-badge";
 import { getCurrentUser } from "@/lib/db/queries/auth";
 import { getCustomerForUser } from "@/lib/db/queries/customers";
 import { getCustomerOrderDetail } from "@/lib/db/queries/customer-orders";
+import { formatCurrency } from "@/lib/utils/format-currency";
 import { formatDateTime } from "@/lib/utils/format-date";
 import { formatOrderNumber } from "@/lib/utils/format-order-number";
 import { CancelOrderButton } from "@/components/customer/cancel-order-button";
+import { cn } from "@/lib/utils/cn";
 
 export const metadata: Metadata = { title: "Order Details" };
 
-// All statuses in lifecycle order — used to build the timeline
+// All statuses in lifecycle order
 const STATUS_TIMELINE: Array<{ status: OrderStatus; label: string }> = [
-  { status: "pending_payment",              label: "Order Placed"          },
-  { status: "payment_pending_confirmation", label: "Payment Submitted"     },
-  { status: "confirmed",                    label: "Payment Confirmed"     },
-  { status: "assigned",                     label: "Delivery Assigned"     },
-  { status: "out_for_delivery",             label: "Out for Delivery"      },
-  { status: "delivered",                    label: "Delivered"             },
+  { status: "pending_payment",              label: "Order Placed"      },
+  { status: "payment_pending_confirmation", label: "Payment Submitted" },
+  { status: "confirmed",                    label: "Payment Confirmed" },
+  { status: "assigned",                     label: "Delivery Assigned" },
+  { status: "out_for_delivery",             label: "Out for Delivery"  },
+  { status: "delivered",                    label: "Delivered"         },
 ];
 
 const STATUS_ORDER = STATUS_TIMELINE.map((s) => s.status);
@@ -37,16 +40,17 @@ function timelineSteps(
   const currentIdx = STATUS_ORDER.indexOf(currentStatus as OrderStatus);
 
   return STATUS_TIMELINE.map((step, idx) => {
-    const done = idx <= currentIdx;
-    // Assign timestamps where we have them
-    let timestamp: Date | null = null;
-    if (step.status === "pending_payment")              timestamp = orderCreatedAt;
-    if (step.status === "confirmed" && paymentConfirmedAt) timestamp = paymentConfirmedAt;
-    if (step.status === "assigned"   && delivery?.assignedAt)   timestamp = delivery.assignedAt;
-    if (step.status === "out_for_delivery" && delivery?.dispatchedAt) timestamp = delivery.dispatchedAt;
-    if (step.status === "delivered"  && delivery?.deliveredAt)  timestamp = delivery.deliveredAt;
+    const done      = idx <= currentIdx;
+    const isCurrent = done && (idx === currentIdx);
 
-    return { label: step.label, done, timestamp };
+    let timestamp: Date | null = null;
+    if (step.status === "pending_payment"              ) timestamp = orderCreatedAt;
+    if (step.status === "confirmed"   && paymentConfirmedAt        ) timestamp = paymentConfirmedAt;
+    if (step.status === "assigned"    && delivery?.assignedAt      ) timestamp = delivery.assignedAt;
+    if (step.status === "out_for_delivery" && delivery?.dispatchedAt) timestamp = delivery.dispatchedAt;
+    if (step.status === "delivered"   && delivery?.deliveredAt     ) timestamp = delivery.deliveredAt;
+
+    return { label: step.label, done, isCurrent, timestamp };
   });
 }
 
@@ -79,7 +83,7 @@ export default async function CustomerOrderDetailPage({
   return (
     <>
       <TopBar title="Order Details" backHref="/orders" />
-      <div className="flex-1 p-4 space-y-4 pb-safe-nav">
+      <PageWrapper className="flex-1 p-4 space-y-4 pb-safe-nav">
 
         {/* Order header */}
         <div className="glass rounded-2xl p-5 space-y-3">
@@ -102,14 +106,14 @@ export default async function CustomerOrderDetailPage({
                   {l.label} × {l.quantity}
                 </span>
                 <span className="font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
-                  ₹{(Number(l.unitPrice) * l.quantity).toLocaleString("en-IN")}
+                  {formatCurrency(Number(l.unitPrice) * l.quantity)}
                 </span>
               </div>
             ))}
             <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 dark:border-slate-700/50">
               <span className="text-slate-900 dark:text-slate-50">Total</span>
               <span className="text-slate-900 dark:text-slate-50 tabular-nums">
-                ₹{Number(order.totalAmount).toLocaleString("en-IN")}
+                {formatCurrency(order.totalAmount)}
               </span>
             </div>
           </div>
@@ -121,7 +125,7 @@ export default async function CustomerOrderDetailPage({
             href={`/payments/${order.id}`}
             className="block w-full py-4 rounded-2xl font-bold text-white text-center bg-gradient-to-br from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 transition-all shadow-sm"
           >
-            Pay Now · ₹{Number(order.totalAmount).toLocaleString("en-IN")}
+            Pay Now · {formatCurrency(order.totalAmount)}
           </Link>
         )}
 
@@ -130,15 +134,15 @@ export default async function CustomerOrderDetailPage({
           <div className="glass-sm rounded-xl p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Payment</p>
-              <p className={`text-sm font-bold ${
-                order.payment.status === "confirmed"
-                  ? "text-emerald-600 dark:text-emerald-400"
+              <p className={cn("text-sm font-bold", {
+                "text-emerald-600 dark:text-emerald-400": order.payment.status === "confirmed",
+                "text-red-600 dark:text-red-400":         order.payment.status === "rejected",
+                "text-amber-600 dark:text-amber-400":     order.payment.status !== "confirmed" && order.payment.status !== "rejected",
+              })}>
+                {order.payment.status === "confirmed"
+                  ? "Confirmed"
                   : order.payment.status === "rejected"
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-amber-600 dark:text-amber-400"
-              }`}>
-                {order.payment.status === "confirmed" ? "Confirmed"
-                  : order.payment.status === "rejected" ? "Rejected"
+                  ? "Rejected"
                   : "Pending confirmation"}
               </p>
             </div>
@@ -165,48 +169,65 @@ export default async function CustomerOrderDetailPage({
           </div>
         )}
 
-        {/* Delivery timeline */}
+        {/* ── Delivery Timeline — modern stepper ─────────────────────────── */}
         {steps.length > 0 && (
           <section>
-            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">
               Delivery Timeline
             </h3>
-            <div className="glass rounded-2xl p-4">
-              <div className="space-y-0">
-                {steps.map((step, i) => (
-                  <div key={step.label} className="flex gap-3">
+            <div className="glass rounded-2xl p-5">
+              {steps.map((step, i) => {
+                const isLast = i === steps.length - 1;
+                return (
+                  <div key={step.label} className="flex gap-4">
+                    {/* Track column */}
                     <div className="flex flex-col items-center">
-                      {step.done ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                      ) : (
-                        <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600 shrink-0" />
-                      )}
-                      {i < steps.length - 1 && (
-                        <div className="w-0.5 h-8 bg-slate-200 dark:bg-slate-700 my-1" />
+                      {/* Step dot */}
+                      <div className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center shrink-0 relative z-10",
+                        step.done
+                          ? "bg-teal-500 shadow-md shadow-teal-300/40 dark:shadow-teal-900/60"
+                          : "bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600"
+                      )}>
+                        {step.done && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                        {/* Pulse on current step */}
+                        {step.isCurrent && (
+                          <span className="absolute inset-0 rounded-full bg-teal-400 animate-ping opacity-25" />
+                        )}
+                      </div>
+                      {/* Connector line */}
+                      {!isLast && (
+                        <div className={cn(
+                          "w-0.5 flex-1 min-h-[2.5rem] my-1 rounded-full",
+                          step.done ? "bg-teal-400 dark:bg-teal-600" : "bg-slate-200 dark:bg-slate-700"
+                        )} />
                       )}
                     </div>
-                    <div className="pb-6 last:pb-0">
-                      <p className={`text-sm font-semibold ${
+
+                    {/* Content column */}
+                    <div className={cn("min-w-0", isLast ? "pb-0" : "pb-3")}>
+                      <p className={cn(
+                        "text-sm font-semibold leading-tight",
                         step.done
                           ? "text-slate-900 dark:text-slate-50"
                           : "text-slate-400 dark:text-slate-600"
-                      }`}>
+                      )}>
                         {step.label}
                       </p>
                       {step.done && step.timestamp && (
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Clock className="w-3 h-3" />
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
+                          <Clock className="w-3 h-3 shrink-0" />
                           {formatDateTime(step.timestamp)}
                         </p>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </section>
         )}
-      </div>
+      </PageWrapper>
     </>
   );
 }

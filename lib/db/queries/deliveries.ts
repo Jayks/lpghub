@@ -21,11 +21,12 @@ export type UnassignedOrderRow = {
   totalAmount: string;
   businessName: string;
   address: string;
+  linesSummary: string;
   createdAt: Date | null;
 };
 
 export async function getUnassignedOrders(): Promise<UnassignedOrderRow[]> {
-  return db
+  const rows = await db
     .select({
       orderId:      orders.id,
       orderNumber:  orders.orderNumber,
@@ -33,12 +34,37 @@ export async function getUnassignedOrders(): Promise<UnassignedOrderRow[]> {
       businessName: customers.businessName,
       address:      customers.address,
       createdAt:    orders.createdAt,
+      label:        cylinderTypes.label,
+      quantity:     orderLineItems.quantity,
     })
     .from(orders)
-    .innerJoin(customers, eq(orders.customerId, customers.id))
+    .innerJoin(customers,       eq(orders.customerId,           customers.id))
     .leftJoin(deliveryAssignments, eq(deliveryAssignments.orderId, orders.id))
+    .leftJoin(orderLineItems,   eq(orderLineItems.orderId,       orders.id))
+    .leftJoin(cylinderTypes,    eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
     .where(and(eq(orders.status, "confirmed"), isNull(deliveryAssignments.id)))
     .orderBy(desc(orders.createdAt));
+
+  const map = new Map<string, UnassignedOrderRow>();
+  for (const row of rows) {
+    if (!map.has(row.orderId)) {
+      map.set(row.orderId, {
+        orderId:      row.orderId,
+        orderNumber:  row.orderNumber,
+        totalAmount:  row.totalAmount,
+        businessName: row.businessName,
+        address:      row.address,
+        linesSummary: "",
+        createdAt:    row.createdAt,
+      });
+    }
+    if (row.label && row.quantity) {
+      const entry = map.get(row.orderId)!;
+      const part  = `${row.quantity}× ${row.label}`;
+      entry.linesSummary = entry.linesSummary ? `${entry.linesSummary}, ${part}` : part;
+    }
+  }
+  return [...map.values()];
 }
 
 // ─── Admin — active deliveries (assigned / out_for_delivery) ──────────────────
@@ -49,6 +75,7 @@ export type ActiveDeliveryRow = {
   orderNumber: number;
   businessName: string;
   totalAmount: string;
+  linesSummary: string;
   deliveryPersonName: string;
   deliveryPersonPhone: string;
   status: string;
@@ -57,7 +84,7 @@ export type ActiveDeliveryRow = {
 };
 
 export async function getActiveDeliveries(): Promise<ActiveDeliveryRow[]> {
-  return db
+  const rows = await db
     .select({
       assignmentId:        deliveryAssignments.id,
       orderId:             orders.id,
@@ -69,13 +96,42 @@ export async function getActiveDeliveries(): Promise<ActiveDeliveryRow[]> {
       status:              deliveryAssignments.status,
       assignedAt:          deliveryAssignments.assignedAt,
       dispatchedAt:        deliveryAssignments.dispatchedAt,
+      label:               cylinderTypes.label,
+      quantity:            orderLineItems.quantity,
     })
     .from(deliveryAssignments)
     .innerJoin(orders,          eq(deliveryAssignments.orderId,          orders.id))
     .innerJoin(customers,       eq(orders.customerId,                    customers.id))
     .innerJoin(deliveryPersons, eq(deliveryAssignments.deliveryPersonId, deliveryPersons.id))
+    .leftJoin(orderLineItems,   eq(orderLineItems.orderId,               orders.id))
+    .leftJoin(cylinderTypes,    eq(orderLineItems.cylinderTypeId,        cylinderTypes.id))
     .where(inArray(deliveryAssignments.status, ["assigned", "out_for_delivery"]))
     .orderBy(desc(deliveryAssignments.assignedAt));
+
+  const map = new Map<string, ActiveDeliveryRow>();
+  for (const row of rows) {
+    if (!map.has(row.assignmentId)) {
+      map.set(row.assignmentId, {
+        assignmentId:        row.assignmentId,
+        orderId:             row.orderId,
+        orderNumber:         row.orderNumber,
+        businessName:        row.businessName,
+        totalAmount:         row.totalAmount,
+        linesSummary:        "",
+        deliveryPersonName:  row.deliveryPersonName,
+        deliveryPersonPhone: row.deliveryPersonPhone,
+        status:              row.status,
+        assignedAt:          row.assignedAt,
+        dispatchedAt:        row.dispatchedAt,
+      });
+    }
+    if (row.label && row.quantity) {
+      const entry = map.get(row.assignmentId)!;
+      const part  = `${row.quantity}× ${row.label}`;
+      entry.linesSummary = entry.linesSummary ? `${entry.linesSummary}, ${part}` : part;
+    }
+  }
+  return [...map.values()];
 }
 
 // ─── Shared — list active delivery persons (for assignment dropdown) ──────────
@@ -155,7 +211,7 @@ export async function getMyDeliveries(
     .where(
       and(
         eq(deliveryPersons.authUserId, deliveryPersonAuthUserId),
-        inArray(deliveryAssignments.status, ["assigned", "out_for_delivery"])
+        inArray(deliveryAssignments.status, ["assigned", "dispatched"])
       )
     )
     .orderBy(desc(deliveryAssignments.assignedAt));
@@ -182,6 +238,24 @@ export async function getMyDeliveries(
     }
   }
   return [...map.values()];
+}
+
+// ─── Admin — get a single delivery person by DB id ───────────────────────────
+
+export async function getDeliveryPersonById(
+  id: string
+): Promise<DeliveryPersonAdminRow | null> {
+  const [row] = await db
+    .select({
+      id:        deliveryPersons.id,
+      name:      deliveryPersons.name,
+      phone:     deliveryPersons.phone,
+      isActive:  deliveryPersons.isActive,
+      createdAt: deliveryPersons.createdAt,
+    })
+    .from(deliveryPersons)
+    .where(eq(deliveryPersons.id, id));
+  return row ?? null;
 }
 
 // ─── Delivery-person view — get delivery person by auth user ID ───────────────

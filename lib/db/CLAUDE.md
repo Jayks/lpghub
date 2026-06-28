@@ -137,13 +137,14 @@ All query functions are plain `async` functions (not `cache()`-wrapped by defaul
 | File | Key exports |
 |---|---|
 | `auth.ts` | `getCurrentUser()` — React `cache()`-wrapped; reads Supabase user + role from `user_roles` |
-| `admin-stats.ts` | `getAdminStats()` — active customers count, pending payments count, total orders, low stock items |
+| `admin-stats.ts` | `getAdminStats()` — 15 parallel queries covering: needs-attention counts (pendingPayments, awaitingAssignment, pendingPaymentOrders, activeDeliveries, lowStockItems), today stats (deliveredToday, revenueToday), month stats (revenueThisMonth, revenueLastMonth, revenueTrend, ordersThisMonth, newCustomersThisMonth, pendingRevenue), inventoryData (all cylinder types with stock breakdown) |
 | `admin-order-detail.ts` | `getAdminOrderDetail(orderId)` — joins order + line items + payment + delivery assignment |
 | `customers.ts` | `getCustomers()`, `getCustomerById(id)`, `getCustomerByAuthUserId(userId)` |
 | `customer-orders.ts` | `getCustomerOrders(customerId)` — orders + line items for the customer view |
-| `deliveries.ts` | `getDeliveries()` — all assignments with order + customer; `getDeliveryById(id)` |
+| `deliveries.ts` | `getUnassignedOrders()`, `getActiveDeliveries()`, `getDeliveryPersons()`, `getAllDeliveryPersons()`, `getDeliveryPersonById(id)`, `getMyDeliveries(authUserId)`, `getDeliveryDetail(assignmentId)` |
 | `inventory.ts` | `getInventory()` — all cylinder types joined with inventory; `getRecentAdjustments()` |
-| `orders.ts` | `getOrders(filters?)` — filterable order list for admin; `getOrderById(id)` |
+| `orders.ts` | `getOrders(params)` — accepts `{ filter, q, from, to }`. `q` searches business name (ilike) OR exact order number (via `parseOrderSearch`). `from`/`to` are YYYY-MM-DD date strings filtered on `createdAt`. Old single-string signature still accepted for backwards compat. Also exports `getOrderById(id)`. |
+| `parse-order-search.ts` | `parseOrderSearch(raw)` — pure function, strips "ORD-" prefix, extracts numeric order number from search string. 14 unit tests in `parse-order-search.test.ts`. |
 | `payments.ts` | `getPendingPayments()` — orders in `payment_pending_confirmation` with payment row |
 | `settings.ts` | `getSettings()` — all rows from `admin_settings` as a key→value map |
 
@@ -184,6 +185,19 @@ afterDelivery(inventory: InventoryRow, qty: number): InventorySnapshot
 
 Tests: `lib/inventory/compute.test.ts`
 
+## Inventory Bar Helper — `lib/inventory/bar.ts`
+
+Pure function for computing dashboard inventory bar segment widths and label visibility. No DB calls.
+
+```typescript
+computeInventoryBar(total, available, reserved, delivered): InventoryBar
+// Returns { available, reserved, delivered } each with { count, pct, showLabel }
+// showLabel = true when pct >= LABEL_MIN_PCT (12) — segment is wide enough to render number inside
+```
+
+Used by the admin dashboard (`app/(admin)/admin/page.tsx`) to render the colour-coded segmented bars.
+Tests: `lib/inventory/bar.test.ts` (10 tests)
+
 ---
 
 ## Zod Schemas — `lib/schemas/`
@@ -192,8 +206,8 @@ Schemas are **shared** across three uses: react-hook-form `zodResolver`, server 
 
 | File | Schemas exported |
 |---|---|
-| `customer.ts` | `CustomerFormSchema`, `CreateCustomerSchema`, `UpdateCustomerSchema` |
-| `inventory.ts` | `AdjustInventorySchema` |
+| `customer.ts` | `createCustomerSchema` (`CreateCustomerInput`), `updateCustomerSchema` (`UpdateCustomerInput`) — phone excluded from update schema (auth identity) |
+| `inventory.ts` | `adjustStockSchema` (`AdjustStockInput`), `adjustmentLabel(input)` |
 
 Tests: `*.test.ts` alongside each schema file.
 

@@ -28,6 +28,7 @@ export function CustomerForm() {
   const {
     register,
     handleSubmit,
+    setFocus,
     formState: { errors },
   } = useForm<CreateCustomerInput>({
     // standardSchemaResolver works with Zod v4 (implements Standard Schema v1 spec).
@@ -53,6 +54,16 @@ export function CustomerForm() {
     });
   }
 
+  // Enter key navigation chain (textarea uses Shift+Enter for newline; plain Enter advances)
+  function onEnter(next: (() => void) | null) {
+    return (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        next?.();
+      }
+    };
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex-1 p-4 space-y-5">
       {/* Business details */}
@@ -67,6 +78,9 @@ export function CustomerForm() {
             {...register("businessName")}
             type="text"
             placeholder="e.g. Sunrise Bakery"
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+            onKeyDown={onEnter(() => setFocus("contactPerson"))}
             className={INPUT_CLS}
           />
           {errors.businessName && <p className={ERROR_CLS}>{errors.businessName.message}</p>}
@@ -78,6 +92,7 @@ export function CustomerForm() {
             {...register("contactPerson")}
             type="text"
             placeholder="e.g. Ravi Kumar"
+            onKeyDown={onEnter(() => setFocus("phone"))}
             className={INPUT_CLS}
           />
           {errors.contactPerson && <p className={ERROR_CLS}>{errors.contactPerson.message}</p>}
@@ -95,6 +110,7 @@ export function CustomerForm() {
               placeholder="98765 43210"
               maxLength={10}
               inputMode="numeric"
+              onKeyDown={onEnter(() => setFocus("address"))}
               className="flex-1 px-4 py-2.5 rounded-r-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
             />
           </div>
@@ -117,8 +133,10 @@ export function CustomerForm() {
           <input
             {...register("eligibilityLimit")}
             type="number"
+            inputMode="numeric"
             min={1}
             max={50}
+            onKeyDown={onEnter(() => setFocus("depositAmount"))}
             className={INPUT_CLS}
           />
           {errors.eligibilityLimit && <p className={ERROR_CLS}>{errors.eligibilityLimit.message}</p>}
@@ -137,9 +155,11 @@ export function CustomerForm() {
             <input
               {...register("depositAmount")}
               type="number"
+              inputMode="decimal"
               min={0}
               step="0.01"
               placeholder="5000"
+              onKeyDown={onEnter(() => setFocus("depositPaidOn"))}
               className={INPUT_CLS}
             />
             {errors.depositAmount && <p className={ERROR_CLS}>{errors.depositAmount.message}</p>}
@@ -149,6 +169,7 @@ export function CustomerForm() {
             <input
               {...register("depositPaidOn")}
               type="date"
+              onKeyDown={onEnter(() => setFocus("depositPaymentMode"))}
               className={INPUT_CLS}
             />
             {errors.depositPaidOn && <p className={ERROR_CLS}>{errors.depositPaidOn.message}</p>}
@@ -157,7 +178,11 @@ export function CustomerForm() {
 
         <div>
           <label className={LABEL_CLS}>Payment Mode</label>
-          <select {...register("depositPaymentMode")} className={INPUT_CLS}>
+          <select
+            {...register("depositPaymentMode")}
+            onKeyDown={onEnter(() => setFocus("depositReferenceNo"))}
+            className={INPUT_CLS}
+          >
             {PAYMENT_MODES.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
@@ -171,6 +196,7 @@ export function CustomerForm() {
             {...register("depositReferenceNo")}
             type="text"
             placeholder="Transaction / receipt reference"
+            onKeyDown={onEnter(() => setFocus("depositNotes"))}
             className={INPUT_CLS}
           />
         </div>
@@ -181,6 +207,7 @@ export function CustomerForm() {
             {...register("depositNotes")}
             type="text"
             placeholder="Any additional notes"
+            onKeyDown={onEnter(() => handleSubmit(onSubmit)())}
             className={INPUT_CLS}
           />
         </div>

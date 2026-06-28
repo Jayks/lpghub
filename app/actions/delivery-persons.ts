@@ -62,6 +62,38 @@ export async function addDeliveryPersonAction(
   }
 }
 
+// ─── Update a delivery person's name ─────────────────────────────────────────
+
+const UpdateDeliveryPersonSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+});
+
+export async function updateDeliveryPersonAction(
+  id: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") return { ok: false, error: "Unauthorized" };
+
+  const parsed = UpdateDeliveryPersonSchema.safeParse({ name: formData.get("name") });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  try {
+    await db
+      .update(deliveryPersons)
+      .set({ name: parsed.data.name.trim() })
+      .where(eq(deliveryPersons.id, id));
+
+    revalidatePath("/admin/deliveries");
+    return { ok: true };
+  } catch (e) {
+    console.error("[updateDeliveryPersonAction]", e);
+    return { ok: false, error: "Failed to update. Please try again." };
+  }
+}
+
 // ─── Toggle active / inactive ─────────────────────────────────────────────────
 
 export async function toggleDeliveryPersonAction(

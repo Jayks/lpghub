@@ -555,6 +555,8 @@ pnpm test --run             # vitest single run (CI)
 # Database
 pnpm db:push                # push schema changes
 pnpm db:studio              # Drizzle Studio GUI
+pnpm db:seed                # seed cylinder_types + inventory (idempotent)
+pnpm db:reseed              # DESTRUCTIVE: wipe customers/orders/deliveries + reseed demo data (3 customers, 2 delivery persons, 8 orders covering all lifecycle statuses)
 
 # Utilities
 node scripts/find-bad-imports.mjs   # find imports after module-level code (Turbopack crash risk)
@@ -682,7 +684,7 @@ await supabase.auth.signInWithPassword({ email, password });
 ```
 Admin accounts are created manually in the Supabase dashboard or via service-role seed script. There is no public admin sign-up route.
 
-**Shared login page (`/login`):** Detect intent by the tab the user selects (Customer / Delivery / Admin). The Customer and Delivery tabs show the phone OTP flow; the Admin tab shows email + password. All three submit to the same Supabase Auth endpoints.
+**Shared login page (`/login`):** Detect intent by the role card the user selects (Customer / Delivery / Admin). The Customer and Delivery cards show the phone OTP flow; the Admin card shows email + password. All three submit to the same Supabase Auth endpoints.
 
 ### Role Resolution
 After login, resolve the user's role from the `user_roles` table (not JWT claims — Supabase free tier doesn't support custom JWT hooks on all plans). Cache the role server-side in `getCurrentUser()`:

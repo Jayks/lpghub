@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,8 @@ import { addDeliveryPersonAction } from "@/app/actions/delivery-persons";
 export function AddDeliveryPersonForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  const phoneRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,6 +41,14 @@ export function AddDeliveryPersonForm() {
           required
           placeholder="e.g. Suresh Kumar"
           disabled={pending}
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              phoneRef.current?.focus();
+            }
+          }}
           className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 disabled:opacity-60"
         />
       </div>
@@ -52,6 +62,7 @@ export function AddDeliveryPersonForm() {
             +91
           </span>
           <input
+            ref={phoneRef}
             name="phone"
             type="tel"
             required
@@ -59,6 +70,12 @@ export function AddDeliveryPersonForm() {
             maxLength={10}
             placeholder="9876543210"
             disabled={pending}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             className="flex-1 px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 disabled:opacity-60"
           />
         </div>

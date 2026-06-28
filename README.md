@@ -81,9 +81,10 @@ pnpm dev
 
 Set `NEXT_PUBLIC_TEST_MODE=true` in `.env.local` to bypass real Supabase OTP (for local dev and CI):
 
-- Phone OTP is accepted as `123456` for any number
-- Admin login hint shown: `admin@lpghub.test` / `Test@lpghub1`
-- The login form displays test credentials on-screen — **never enable in production**
+- Phone OTP is bypassed — a fixed test code is accepted for any number
+- Customer and Delivery phone fields are pre-filled with test numbers (auto-switches when changing role)
+- Admin test credentials are shown on-screen in the login form
+- **Never enable in production**
 
 ---
 

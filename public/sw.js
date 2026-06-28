@@ -16,7 +16,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title ?? "LPGHub", {
       body: body ?? "",
       icon: "/icon-192.png",
-      badge: "/badge-72.png",
+      badge: "/icon-192.png",
       data: { url: url ?? "/" },
       vibrate: [100, 50, 100],
     })

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { TopBar } from "@/components/layout/top-bar";
+import { PageWrapper } from "@/components/shared/page-wrapper";
+import { EmptyState } from "@/components/shared/empty-state";
 import { getInventoryWithTypes, getRecentAdjustments } from "@/lib/db/queries/inventory";
 import { AdjustStockForm } from "@/components/admin/adjust-stock-form";
 import { formatDate } from "@/lib/utils/format-date";
@@ -28,20 +30,14 @@ export default async function AdminInventoryPage() {
   return (
     <>
       <TopBar title="Inventory" />
-      <div className="flex-1 p-4 space-y-5">
+      <PageWrapper className="flex-1 p-4 space-y-5">
 
         {stock.length === 0 ? (
-          <div className="glass-sm rounded-2xl p-10 text-center space-y-2">
-            <Package className="w-10 h-10 text-slate-400 mx-auto" />
-            <p className="font-semibold text-slate-700 dark:text-slate-200">No inventory data</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Run{" "}
-              <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">
-                pnpm db:seed
-              </code>{" "}
-              to populate cylinder types.
-            </p>
-          </div>
+          <EmptyState
+            icon={Package}
+            title="No inventory data"
+            description='Run "pnpm db:seed" to populate cylinder types.'
+          />
         ) : (
           stock.map((s) => {
             const isLow = s.availableStock < LOW_STOCK_THRESHOLD;
@@ -52,7 +48,7 @@ export default async function AdminInventoryPage() {
                   isLow ? "ring-1 ring-red-300 dark:ring-red-700" : ""
                 }`}
               >
-                {/* ── Header: icon + label + price + low badge ── */}
+                {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
@@ -65,7 +61,7 @@ export default async function AdminInventoryPage() {
                         {s.label}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        ₹{parseFloat(s.unitPrice).toLocaleString("en-IN")} / cylinder
+                        {parseFloat(s.unitPrice).toLocaleString("en-IN", { style: "currency", currency: "INR" })} / cylinder
                       </p>
                     </div>
                   </div>
@@ -76,7 +72,7 @@ export default async function AdminInventoryPage() {
                   )}
                 </div>
 
-                {/* ── Big total number ── */}
+                {/* Total */}
                 <div className="text-center py-1">
                   <p className="text-6xl font-black tabular text-slate-900 dark:text-slate-50 leading-none">
                     {s.totalStock}
@@ -86,7 +82,7 @@ export default async function AdminInventoryPage() {
                   </p>
                 </div>
 
-                {/* ── Secondary stats ── */}
+                {/* Secondary stats */}
                 <div className="flex items-center justify-center gap-0 divide-x divide-slate-200 dark:divide-slate-700">
                   {[
                     { label: "Available", value: s.availableStock, color: isLow ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400" },
@@ -102,7 +98,7 @@ export default async function AdminInventoryPage() {
                   ))}
                 </div>
 
-                {/* ── Add / Reduce form ── */}
+                {/* Adjust form */}
                 <AdjustStockForm
                   inventoryId={s.inventoryId}
                   cylinderTypeId={s.cylinderTypeId}
@@ -117,7 +113,7 @@ export default async function AdminInventoryPage() {
           })
         )}
 
-        {/* ── Recent adjustments ── */}
+        {/* Recent adjustments */}
         {adjustments.length > 0 && (
           <section>
             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
@@ -153,7 +149,7 @@ export default async function AdminInventoryPage() {
             </div>
           </section>
         )}
-      </div>
+      </PageWrapper>
     </>
   );
 }

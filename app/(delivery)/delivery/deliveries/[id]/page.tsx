@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TopBar } from "@/components/layout/top-bar";
-import { MapPin, Package } from "lucide-react";
+import { PageWrapper } from "@/components/shared/page-wrapper";
+import { MapPin, Package, Phone, User } from "lucide-react";
 import { getDeliveryDetail } from "@/lib/db/queries/deliveries";
 import { DeliveryStatusButtons } from "@/components/delivery/delivery-status-buttons";
 import { formatDate } from "@/lib/utils/format-date";
@@ -25,10 +26,10 @@ export default async function DeliveryDetailPage({
   return (
     <>
       <TopBar title="Delivery Detail" backHref="/delivery" />
-      <div className="flex-1 p-4 space-y-4">
+      <PageWrapper className="flex-1 p-4 space-y-4 pb-safe-nav">
 
         {/* Order summary */}
-        <div className="glass rounded-2xl p-5 space-y-3">
+        <div className="glass rounded-2xl p-5 space-y-4">
           <div>
             <h2 className="font-bold text-lg text-slate-900 dark:text-slate-50">
               {detail.businessName}
@@ -38,14 +39,15 @@ export default async function DeliveryDetailPage({
             </p>
           </div>
 
+          {/* Cylinders */}
           {linesSummary && (
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
-              <Package className="w-4 h-4 text-slate-400" />
-              {linesSummary}
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200/60 dark:border-cyan-800/40">
+              <Package className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
+              <span className="text-sm font-bold text-cyan-700 dark:text-cyan-300">{linesSummary}</span>
             </div>
           )}
 
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-2.5">
             <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
               {detail.address}
@@ -54,19 +56,25 @@ export default async function DeliveryDetailPage({
         </div>
 
         {/* Customer contact */}
-        <div className="glass-sm rounded-xl p-4 space-y-1">
+        <div className="glass-sm rounded-xl p-4 space-y-3">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
             Contact
           </p>
-          <p className="text-sm font-bold text-slate-900 dark:text-slate-50">
-            {detail.contactPerson}
-          </p>
-          <a
-            href={`tel:${detail.phone}`}
-            className="text-sm font-semibold text-cyan-700 dark:text-cyan-400 hover:underline"
-          >
-            {detail.phone}
-          </a>
+          <div className="flex items-center gap-2 text-sm">
+            <User className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="font-bold text-slate-900 dark:text-slate-50">
+              {detail.contactPerson}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+            <a
+              href={`tel:${detail.phone}`}
+              className="text-sm font-semibold text-cyan-700 dark:text-cyan-400 hover:underline"
+            >
+              {detail.phone}
+            </a>
+          </div>
         </div>
 
         {/* Status action buttons */}
@@ -74,7 +82,7 @@ export default async function DeliveryDetailPage({
           assignmentId={detail.assignmentId}
           status={detail.status}
         />
-      </div>
+      </PageWrapper>
     </>
   );
 }
