@@ -45,7 +45,7 @@ export function ThemeToggle({ className, collapsed = false }: ThemeToggleProps) 
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.span
-            className="overflow-hidden whitespace-nowrap text-xs text-slate-400 dark:text-slate-500"
+            className="overflow-hidden whitespace-nowrap text-xs text-slate-400 dark:text-slate-500 hidden md:inline"
             initial={{ opacity: 0, width: 0 }}
             animate={{ opacity: 1, width: "auto" }}
             exit={{ opacity: 0, width: 0 }}

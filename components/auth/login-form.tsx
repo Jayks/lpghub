@@ -6,6 +6,11 @@ import { Loader2, ArrowLeft, Eye, EyeOff, Users, Truck, ShieldCheck } from "luci
 import { toast } from "sonner";
 import { sendOtpAction, verifyOtpAction, signInWithEmailAction } from "@/app/actions/auth";
 
+// Scrolls the focused input into view above the mobile keyboard
+function scrollToInput(el: HTMLElement | null) {
+  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 // ─── Test-mode constants (mirrored from server action — not sensitive in dev) ─
 const TEST_MODE = process.env.NEXT_PUBLIC_TEST_MODE === "true";
 const TEST_OTP = "123456";
@@ -178,24 +183,24 @@ export function LoginForm() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="glass rounded-3xl p-8 space-y-7">
+      <div className="glass rounded-3xl p-5 sm:p-8 space-y-4 sm:space-y-7">
 
         {/* ── Logo ──────────────────────────────────────────────────────────── */}
-        <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex flex-col items-center gap-2 sm:gap-3 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/icon.svg"
             alt="LPGHub"
-            className="w-16 h-16 rounded-2xl shadow-lg shadow-cyan-500/25"
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl shadow-lg shadow-cyan-500/25"
           />
           <div>
             <h1
-              className="text-2xl font-bold text-slate-900 dark:text-slate-50"
+              className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-50"
               style={{ fontFamily: "var(--font-display)" }}
             >
               LPGHub
             </h1>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
               Who are you signing in as?
             </p>
           </div>
@@ -228,14 +233,14 @@ export function LoginForm() {
                 aria-checked={isActive}
                 onClick={() => handleTabChange(role.id)}
                 className={[
-                  "flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer select-none",
+                  "flex flex-col items-center gap-1.5 sm:gap-2.5 p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer select-none",
                   isActive
                     ? "border-cyan-500 bg-cyan-50/80 dark:bg-cyan-900/25 shadow-sm shadow-cyan-200/60 dark:shadow-cyan-900/40"
                     : "border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-white/70 dark:hover:bg-slate-800/60",
                 ].join(" ")}
               >
                 <div className={[
-                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200",
+                  "w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200",
                   isActive
                     ? "bg-gradient-to-br from-cyan-500 to-teal-500 shadow-md shadow-cyan-400/30"
                     : "bg-slate-100 dark:bg-slate-700",
@@ -284,6 +289,7 @@ export function LoginForm() {
                       value={phone}
                       onChange={(e) => handlePhoneChange(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
+                      onFocus={(e) => scrollToInput(e.currentTarget)}
                       placeholder="98765 43210"
                       inputMode="numeric"
                       autoComplete="tel"
@@ -339,7 +345,7 @@ export function LoginForm() {
                         onChange={(e) => handleDigitChange(i, e.target.value)}
                         onKeyDown={(e) => handleDigitKeyDown(i, e)}
                         onPaste={i === 0 ? handleDigitPaste : undefined}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => { e.target.select(); scrollToInput(e.currentTarget); }}
                         className={[
                           "flex-1 min-w-0 h-12 text-center text-xl font-bold rounded-xl border-2 transition-all duration-150",
                           "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-50 focus:outline-none",
@@ -397,6 +403,7 @@ export function LoginForm() {
                 }}
                 placeholder="admin@example.com"
                 autoComplete="email"
+                onFocus={(e) => scrollToInput(e.currentTarget)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
               />
             </div>
@@ -413,6 +420,7 @@ export function LoginForm() {
                   onKeyDown={(e) => { if (e.key === "Enter") handleAdminSignIn(); }}
                   placeholder="••••••••"
                   autoComplete="current-password"
+                  onFocus={(e) => scrollToInput(e.currentTarget)}
                   className="w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
                 />
                 <button
