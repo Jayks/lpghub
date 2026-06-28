@@ -8,10 +8,12 @@ import {
   deliveryAssignments,
   deliveryPersons,
   orders,
+  customers,
   inventory,
   orderLineItems,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/db/queries/auth";
+import { sendPushToUser, sendPushToAllAdmins } from "@/lib/notifications/send-push";
 
 const db = drizzle(pgClient);
 
@@ -44,6 +46,23 @@ export async function assignDeliveryAction(
 
     revalidatePath("/admin/deliveries");
     revalidatePath("/admin/orders");
+
+    // Notify the customer — fire-and-forget
+    try {
+      const [orderRow] = await db
+        .select({ authUserId: customers.authUserId })
+        .from(orders)
+        .innerJoin(customers, eq(orders.customerId, customers.id))
+        .where(eq(orders.id, orderId));
+      if (orderRow?.authUserId) {
+        await sendPushToUser(orderRow.authUserId, {
+          title: "Order Assigned 📦",
+          body: "Your order has been assigned to a delivery person.",
+          url: `/orders/${orderId}`,
+        });
+      }
+    } catch { /* push is best-effort */ }
+
     return { ok: true };
   } catch (e) {
     console.error("[assignDeliveryAction]", e);
@@ -91,6 +110,23 @@ export async function markOutForDeliveryAction(
 
     revalidatePath(`/delivery/deliveries/${assignmentId}`);
     revalidatePath("/admin/deliveries");
+
+    // Notify the customer — fire-and-forget
+    try {
+      const [orderRow] = await db
+        .select({ authUserId: customers.authUserId })
+        .from(orders)
+        .innerJoin(customers, eq(orders.customerId, customers.id))
+        .where(eq(orders.id, assignment.orderId));
+      if (orderRow?.authUserId) {
+        await sendPushToUser(orderRow.authUserId, {
+          title: "Out for Delivery 🚚",
+          body: "Your cylinders are on the way!",
+          url: `/orders/${assignment.orderId}`,
+        });
+      }
+    } catch { /* push is best-effort */ }
+
     return { ok: true };
   } catch (e) {
     console.error("[markOutForDeliveryAction]", e);
@@ -163,6 +199,28 @@ export async function markDeliveredAction(
     revalidatePath(`/delivery/deliveries/${assignmentId}`);
     revalidatePath("/admin/deliveries");
     revalidatePath("/admin/inventory");
+
+    // Notify customer + admins — fire-and-forget
+    try {
+      const [orderRow] = await db
+        .select({ authUserId: customers.authUserId })
+        .from(orders)
+        .innerJoin(customers, eq(orders.customerId, customers.id))
+        .where(eq(orders.id, assignment.orderId));
+      if (orderRow?.authUserId) {
+        await sendPushToUser(orderRow.authUserId, {
+          title: "Delivered ✅",
+          body: "Your cylinders have been delivered. Thank you!",
+          url: `/orders/${assignment.orderId}`,
+        });
+      }
+      await sendPushToAllAdmins({
+        title: "Order Delivered 📦",
+        body: "A delivery has been completed.",
+        url: "/admin/deliveries",
+      });
+    } catch { /* push is best-effort */ }
+
     return { ok: true };
   } catch (e) {
     console.error("[markDeliveredAction]", e);

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
-import { payments, orders, inventory, orderLineItems } from "@/lib/db/schema";
+import { payments, orders, inventory, orderLineItems, customers } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/db/queries/auth";
+import { sendPushToUser, sendPushToAllAdmins } from "@/lib/notifications/send-push";
 
 const db = drizzle(pgClient);
 
@@ -43,6 +44,23 @@ export async function confirmPaymentAction(
     revalidatePath("/admin/payments");
     revalidatePath("/admin/orders");
     revalidatePath("/admin");
+
+    // Notify the customer — fire-and-forget
+    try {
+      const [orderRow] = await db
+        .select({ authUserId: customers.authUserId })
+        .from(orders)
+        .innerJoin(customers, eq(orders.customerId, customers.id))
+        .where(eq(orders.id, orderId));
+      if (orderRow?.authUserId) {
+        await sendPushToUser(orderRow.authUserId, {
+          title: "Payment Confirmed ✅",
+          body: "Your payment has been verified. Your order is being prepared.",
+          url: `/orders/${orderId}`,
+        });
+      }
+    } catch { /* push is best-effort */ }
+
     return { ok: true };
   } catch (e) {
     console.error("[confirmPaymentAction]", e);
@@ -93,6 +111,23 @@ export async function rejectPaymentAction(
     revalidatePath("/admin/orders");
     revalidatePath("/admin/inventory");
     revalidatePath("/admin");
+
+    // Notify the customer — fire-and-forget
+    try {
+      const [orderRow] = await db
+        .select({ authUserId: customers.authUserId })
+        .from(orders)
+        .innerJoin(customers, eq(orders.customerId, customers.id))
+        .where(eq(orders.id, orderId));
+      if (orderRow?.authUserId) {
+        await sendPushToUser(orderRow.authUserId, {
+          title: "Payment Not Verified ❌",
+          body: "Your payment could not be verified. Please contact your agency.",
+          url: `/orders/${orderId}`,
+        });
+      }
+    } catch { /* push is best-effort */ }
+
     return { ok: true };
   } catch (e) {
     console.error("[rejectPaymentAction]", e);
@@ -124,6 +159,16 @@ export async function reportPaymentAction(
 
     revalidatePath(`/orders`);
     revalidatePath(`/payments/${orderId}`);
+
+    // Notify admins — fire-and-forget
+    try {
+      await sendPushToAllAdmins({
+        title: "Payment Reported 💰",
+        body: "A customer has reported a UPI payment — please verify.",
+        url: "/admin/payments",
+      });
+    } catch { /* push is best-effort */ }
+
     return { ok: true };
   } catch (e) {
     console.error("[reportPaymentAction]", e);

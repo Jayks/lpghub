@@ -12,6 +12,14 @@ export interface PushPayload {
   url?: string;
 }
 
+/**
+ * WNS endpoints (Edge on Windows) use a different auth protocol and cannot
+ * receive VAPID-signed pushes. Filter them out — they will always fail.
+ */
+function isSupportedEndpoint(endpoint: string): boolean {
+  return !endpoint.includes("notify.windows.com");
+}
+
 export async function sendPushToUser(
   userId: string,
   payload: PushPayload
@@ -32,8 +40,10 @@ export async function sendPushToUser(
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.userId, userId));
 
-  await Promise.allSettled(
-    subs.map((sub) =>
+  const supported = subs.filter(s => isSupportedEndpoint(s.endpoint));
+
+  const results = await Promise.allSettled(
+    supported.map((sub) =>
       webpush.sendNotification(
         {
           endpoint: sub.endpoint,
@@ -43,6 +53,16 @@ export async function sendPushToUser(
       )
     )
   );
+
+  // Log failures so they appear in server logs — never throw to caller
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      console.error(
+        `[sendPushToUser] failed for endpoint ${supported[i]?.endpoint.slice(0, 60)}…`,
+        r.reason
+      );
+    }
+  });
 }
 
 export async function sendPushToAllAdmins(payload: PushPayload): Promise<void> {

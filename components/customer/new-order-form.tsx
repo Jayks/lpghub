@@ -10,9 +10,10 @@ import type { InventoryRow } from "@/lib/db/queries/inventory";
 interface Props {
   stock: InventoryRow[];
   eligibilityLimit: number;
+  activeCylinders: number; // cylinders already committed in open orders
 }
 
-export function NewOrderForm({ stock, eligibilityLimit }: Props) {
+export function NewOrderForm({ stock, eligibilityLimit, activeCylinders }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -21,18 +22,20 @@ export function NewOrderForm({ stock, eligibilityLimit }: Props) {
     Object.fromEntries(stock.map((s) => [s.cylinderTypeId, 0]))
   );
 
-  const totalQty   = Object.values(qty).reduce((a, b) => a + b, 0);
+  const totalQty    = Object.values(qty).reduce((a, b) => a + b, 0);
   const totalAmount = stock.reduce(
     (sum, s) => sum + (qty[s.cylinderTypeId] ?? 0) * Number(s.unitPrice),
     0
   );
-  const remaining = eligibilityLimit - totalQty;
+  // Effective remaining = limit minus cylinders already in active orders minus what's in this form
+  const effectiveLimit = eligibilityLimit - activeCylinders;
+  const remaining      = effectiveLimit - totalQty;
 
   function increment(cylinderTypeId: string, availableStock: number) {
     setQty((prev) => {
       const cur = prev[cylinderTypeId] ?? 0;
-      if (totalQty >= eligibilityLimit) {
-        toast.error(`Eligibility limit reached (${eligibilityLimit} cylinders)`);
+      if (totalQty >= effectiveLimit) {
+        toast.error(`Eligibility limit reached (${eligibilityLimit} cylinders total, ${activeCylinders} already in active orders)`);
         return prev;
       }
       if (cur >= availableStock) {
@@ -78,19 +81,26 @@ export function NewOrderForm({ stock, eligibilityLimit }: Props) {
   return (
     <div className="space-y-5">
       {/* Eligibility bar */}
-      <div className="glass rounded-2xl p-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Eligibility limit</p>
-          <p className="text-2xl font-bold text-slate-900 dark:text-slate-50 tabular-nums">
-            {eligibilityLimit} cylinders
-          </p>
+      <div className="glass rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Eligibility limit</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-50 tabular-nums">
+              {eligibilityLimit} cylinders
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Available to order</p>
+            <p className={`text-2xl font-bold tabular-nums ${remaining <= 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+              {Math.max(0, remaining)}
+            </p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Remaining</p>
-          <p className={`text-2xl font-bold tabular-nums ${remaining === 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-            {remaining}
+        {activeCylinders > 0 && (
+          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
+            {activeCylinders} cylinder{activeCylinders !== 1 ? "s" : ""} already in active orders
           </p>
-        </div>
+        )}
       </div>
 
       {/* Cylinder type selectors */}

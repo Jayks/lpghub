@@ -9,6 +9,7 @@ import {
   Users,
   CreditCard,
   Truck,
+  Settings,
 } from "lucide-react";
 import { isNavItemActive } from "@/lib/utils/nav";
 import { cn } from "@/lib/utils/cn";
@@ -25,10 +26,12 @@ const ADMIN_TABS = [
 const CUSTOMER_TABS = [
   { href: "/", label: "Home", icon: LayoutDashboard, exact: true },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const DELIVERY_TABS = [
   { href: "/delivery", label: "Deliveries", icon: Truck, exact: true },
+  { href: "/delivery/settings", label: "Settings", icon: Settings },
 ];
 
 type Tab = { href: string; label: string; icon: React.ElementType; exact?: boolean };

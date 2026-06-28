@@ -32,10 +32,12 @@ const ADMIN_NAV = [
 const CUSTOMER_NAV = [
   { href: "/", label: "Home", icon: LayoutDashboard, exact: true },
   { href: "/orders", label: "My Orders", icon: ShoppingCart },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const DELIVERY_NAV = [
   { href: "/delivery", label: "My Deliveries", icon: Truck, exact: true },
+  { href: "/delivery/settings", label: "Settings", icon: Settings },
 ];
 
 type NavItem = { href: string; label: string; icon: React.ElementType; exact?: boolean };

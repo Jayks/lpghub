@@ -7,23 +7,14 @@ import pgClient from "@/lib/db/client";
 import { orders, orderLineItems, payments, inventory, cylinderTypes } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/db/queries/auth";
 import { getCustomerForUser } from "@/lib/db/queries/customers";
+import { getActiveCylinderCount } from "@/lib/db/queries/customer-orders";
+import { buildUpiLink } from "@/lib/utils/upi";
+import { sendPushToAllAdmins } from "@/lib/notifications/send-push";
 
 const db = drizzle(pgClient);
 
 const UPI_VPA      = process.env.NEXT_PUBLIC_UPI_VPA      ?? "agency@upi";
 const UPI_MERCHANT = process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME ?? "LPGHub";
-
-function buildUpiLink(orderId: string, amount: string): string {
-  const params = new URLSearchParams({
-    pa: UPI_VPA,
-    pn: UPI_MERCHANT,
-    am: amount,
-    tr: orderId,
-    tn: "LPGHub Order",
-    cu: "INR",
-  });
-  return `upi://pay?${params.toString()}`;
-}
 
 export type OrderLineInput = {
   cylinderTypeId: string;
@@ -51,10 +42,16 @@ export async function createOrderAction(
   if (selectedLines.length === 0) return { ok: false, error: "Select at least one cylinder" };
 
   const totalQty = selectedLines.reduce((sum, l) => sum + l.quantity, 0);
-  if (totalQty > customer.eligibilityLimit) {
+
+  // Count cylinders already committed in active orders — enforce limit across all orders
+  const activeCylinders = await getActiveCylinderCount(customer.id);
+  if (totalQty + activeCylinders > customer.eligibilityLimit) {
+    const remaining = customer.eligibilityLimit - activeCylinders;
     return {
       ok: false,
-      error: `Total quantity (${totalQty}) exceeds your eligibility limit of ${customer.eligibilityLimit}`,
+      error: remaining <= 0
+        ? `You have reached your eligibility limit of ${customer.eligibilityLimit} cylinders across active orders`
+        : `You can only order ${remaining} more cylinder${remaining !== 1 ? "s" : ""} (${activeCylinders} already in active orders)`,
     };
   }
 
@@ -113,7 +110,12 @@ export async function createOrderAction(
     }
 
     // Create payment record with UPI link
-    const upiLink = buildUpiLink(order.id, totalAmount.toFixed(2));
+    const upiLink = buildUpiLink({
+      vpa: UPI_VPA,
+      merchantName: UPI_MERCHANT,
+      amount: totalAmount.toFixed(2),
+      orderId: order.id,
+    });
     await db.insert(payments).values({
       orderId: order.id,
       amount:  totalAmount.toFixed(2),
@@ -135,6 +137,16 @@ export async function createOrderAction(
 
     revalidatePath("/orders");
     revalidatePath("/admin/inventory");
+
+    // Notify admins — fire-and-forget, never fails the action
+    try {
+      await sendPushToAllAdmins({
+        title: "New Order 🛒",
+        body: `${customer.businessName} placed a new cylinder order.`,
+        url: "/admin/orders",
+      });
+    } catch { /* push is best-effort */ }
+
     return { ok: true, orderId: order.id };
   } catch (e) {
     console.error("[createOrderAction]", e);

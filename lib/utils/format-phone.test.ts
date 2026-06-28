@@ -69,3 +69,62 @@ describe("isValidIndianPhone", () => {
     expect(isValidIndianPhone("+91987654321a")).toBe(false);
   });
 });
+
+// ─── Additional edge cases ────────────────────────────────────────────────────
+
+describe("formatPhone — additional edge cases", () => {
+  it("handles all-zero 10-digit input", () => {
+    // Not a valid Indian mobile, but formatPhone normalises any 10-digit string
+    expect(formatPhone("0000000000")).toBe("+910000000000");
+  });
+
+  it("handles input that starts with 91 and is 12 digits", () => {
+    expect(formatPhone("919876543210")).toBe("+919876543210");
+  });
+
+  it("strips mixed whitespace and hyphens before formatting", () => {
+    expect(formatPhone("98 765-43210")).toBe("+919876543210");
+  });
+
+  it("handles empty string without throwing (returns best-effort '+')", () => {
+    // Empty string → digits = "" → falls through to `+${digits}` = "+"
+    expect(() => formatPhone("")).not.toThrow();
+    expect(formatPhone("")).toBe("+");
+  });
+
+  it("strips leading/trailing whitespace from a 10-digit number", () => {
+    // "  9876543210  " → digits = "9876543210" → "+919876543210"
+    expect(formatPhone("  9876543210  ")).toBe("+919876543210");
+  });
+});
+
+describe("isValidIndianPhone — additional edge cases", () => {
+  it("rejects empty string", () => {
+    expect(isValidIndianPhone("")).toBe(false);
+  });
+
+  it("rejects '+91' with no digits after it", () => {
+    expect(isValidIndianPhone("+91")).toBe(false);
+  });
+
+  it("rejects a number with spaces inside", () => {
+    expect(isValidIndianPhone("+91 9876543210")).toBe(false);
+  });
+
+  it("accepts minimum valid mobile starting with 6", () => {
+    expect(isValidIndianPhone("+916000000000")).toBe(true);
+  });
+
+  it("accepts maximum valid mobile starting with 9", () => {
+    expect(isValidIndianPhone("+919999999999")).toBe(true);
+  });
+
+  it("rejects null-ish string '  '", () => {
+    expect(isValidIndianPhone("  ")).toBe(false);
+  });
+
+  it("is case-sensitive for the + prefix", () => {
+    // Just digits — no + prefix
+    expect(isValidIndianPhone("919876543210")).toBe(false);
+  });
+});

@@ -86,6 +86,7 @@ export const config = {
     "/",
     "/orders/:path*",
     "/payments/:path*",
+    "/settings",
     // Protected admin routes
     "/admin/:path*",
     "/onboarding/:path*",

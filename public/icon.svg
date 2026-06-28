@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+
+    <!-- ══ BACKGROUND ════════════════════════════════════════════════ -->
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#1ECBE1"/>
+      <stop offset="40%"  stop-color="#0891B2"/>
+      <stop offset="100%" stop-color="#0A3040"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="50%" cy="44%" r="44%">
+      <stop offset="0%"   stop-color="rgba(56,189,248,0.26)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="72%">
+      <stop offset="0%"   stop-color="rgba(0,0,0,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.28)"/>
+    </radialGradient>
+    <radialGradient id="glare" cx="20%" cy="16%" r="50%">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.20)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+
+    <!-- ══ CYLINDER BODY — 7-stop horizontal gradient ═════════════ -->
+    <!-- x=154 → x=358 matches the body rect width -->
+    <linearGradient id="bodyGrad" x1="154" y1="0" x2="358" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#68AAC4"/>
+      <stop offset="9%"   stop-color="#96C8DC"/>
+      <stop offset="22%"  stop-color="#CEEAF5"/>
+      <stop offset="32%"  stop-color="#FFFFFF"/>
+      <stop offset="56%"  stop-color="#EAF6FD"/>
+      <stop offset="78%"  stop-color="#BAE0EF"/>
+      <stop offset="100%" stop-color="#66A8C2"/>
+    </linearGradient>
+
+    <!-- SHOULDER DOME — radial, lit from upper-left -->
+    <radialGradient id="topDome" cx="36%" cy="32%" r="68%">
+      <stop offset="0%"   stop-color="#FFFFFF"/>
+      <stop offset="50%"  stop-color="#E6F6FC"/>
+      <stop offset="100%" stop-color="#A0CCDE"/>
+    </radialGradient>
+
+    <!-- BOTTOM DOME — cooler, in shadow -->
+    <radialGradient id="btmDome" cx="38%" cy="38%" r="70%">
+      <stop offset="0%"   stop-color="#B0D2E4"/>
+      <stop offset="100%" stop-color="#78ACCB"/>
+    </radialGradient>
+
+    <!-- LABEL BAND — darker at curved edges -->
+    <linearGradient id="labelGrad" x1="154" y1="0" x2="358" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="rgba(4,72,100,0.40)"/>
+      <stop offset="30%"  stop-color="rgba(4,72,100,0.16)"/>
+      <stop offset="70%"  stop-color="rgba(4,72,100,0.20)"/>
+      <stop offset="100%" stop-color="rgba(4,72,100,0.36)"/>
+    </linearGradient>
+
+    <!-- FOOT RING — top-lit bevel -->
+    <linearGradient id="footGrad" x1="0" y1="428" x2="0" y2="454" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#D6ECF6"/>
+      <stop offset="48%"  stop-color="#B0D2E6"/>
+      <stop offset="100%" stop-color="#86B8CC"/>
+    </linearGradient>
+
+    <!--
+      ══ NECK (visible stub below the ring, between the two pillars) ════
+      Same horizontal-lit logic as body, narrower span x=222 → x=290.
+    -->
+    <linearGradient id="neckGrad" x1="222" y1="0" x2="290" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7AB8CC"/>
+      <stop offset="28%"  stop-color="#FFFFFF"/>
+      <stop offset="68%"  stop-color="#CCEAF5"/>
+      <stop offset="100%" stop-color="#78B2C8"/>
+    </linearGradient>
+
+    <!--
+      ══ PILLARS — two short support posts ════════════════════════════
+      objectBoundingBox so the gradient scales correctly to each pillar rect.
+    -->
+    <linearGradient id="pillarGrad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="#7AB8CC"/>
+      <stop offset="28%"  stop-color="#FFFFFF"/>
+      <stop offset="68%"  stop-color="#C0DCEC"/>
+      <stop offset="100%" stop-color="#72B0C4"/>
+    </linearGradient>
+
+    <!--
+      ══ OVAL RING — flat torus lying horizontally on the pillars ════════
+      Viewed from slightly above-left.
+      Top face catches the key light → bright.
+      Outer rim (front face) → mid-tone.
+      Bottom underside → deep shadow.
+
+      Vertical gradient matches this lighting:
+        y=124 (ring top face) → bright
+        y=172 (ring underside) → shadow
+    -->
+    <linearGradient id="ringGrad" x1="0" y1="124" x2="0" y2="172" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#E4F2FA"/>
+      <stop offset="28%"  stop-color="#C8E2EF"/>
+      <stop offset="65%"  stop-color="#9EC4D8"/>
+      <stop offset="100%" stop-color="#78AEC4"/>
+    </linearGradient>
+
+    <!-- ══ FILTERS ════════════════════════════════════════════════════ -->
+    <!-- Primary drop shadow — large soft blur, floating feel -->
+    <filter id="drop" x="-30%" y="-12%" width="160%" height="150%">
+      <feDropShadow dx="3" dy="24" stdDeviation="22"
+                    flood-color="#010E18" flood-opacity="0.62"/>
+    </filter>
+    <!-- Diffuse blur for specular highlights -->
+    <filter id="specBlur" x="-80%" y="-30%" width="260%" height="160%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <!-- Floor contact shadow -->
+    <filter id="floorBlur" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <!-- Rim light -->
+    <filter id="rimBlur" x="-300%" y="-8%" width="700%" height="116%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <!-- Softer blur for ring/pillar highlights -->
+    <filter id="softBlur" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+
+  </defs>
+
+  <!-- ══ BACKGROUND ════════════════════════════════════════════════════ -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#bgGlow)"/>
+  <rect width="512" height="512" rx="112" fill="url(#vignette)"/>
+  <rect width="512" height="512" rx="112" fill="url(#glare)"/>
+
+  <!-- ══ FLOOR SHADOW ════════════════════════════════════════════════ -->
+  <ellipse cx="258" cy="462" rx="112" ry="18"
+           fill="rgba(0,10,20,0.52)" filter="url(#floorBlur)"/>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       3D GAS CYLINDER + OVAL RING ON PILLARS
+
+       Geometry (centre x = 256):
+         Ring centre        cy = 148    (top=126, bottom=170)
+         Ring inner hole    ry = 12     (top=136, bottom=160)
+         Pillars            y  = 170 → 214  (cx = 194 left, cx = 318 right)
+         Neck               y  = 170 → 224  (x = 222 → 290, visible ~24 px)
+         Shoulder dome      cy = 224    (top ≈ 194 at centre)
+         Body               y  = 224 → 422
+         Bottom dome        cy = 422
+         Foot ring          y  = 420 → 446
+
+       Draw order (back → front):
+         foot + body + domes → label → specular → rim light
+         → neck → pillars → ring shadow → ring → ring highlights
+       ══════════════════════════════════════════════════════════════════ -->
+  <g filter="url(#drop)">
+
+    <!-- ── FOOT RING ──────────────────────────────────────────────── -->
+    <rect x="164" y="420" width="184" height="26" rx="13" fill="url(#footGrad)"/>
+    <!-- Top bevel -->
+    <rect x="172" y="421" width="168" height="10" rx="5" fill="rgba(255,255,255,0.36)"/>
+
+    <!-- ── CYLINDER BODY ──────────────────────────────────────────── -->
+    <rect x="154" y="224" width="204" height="198" fill="url(#bodyGrad)"/>
+
+    <!-- BOTTOM DOME -->
+    <ellipse cx="256" cy="422" rx="102" ry="22" fill="url(#btmDome)"/>
+
+    <!-- TOP SHOULDER DOME -->
+    <ellipse cx="256" cy="224" rx="102" ry="30" fill="url(#topDome)"/>
+
+    <!-- Dome crown specular (soft glow, upper-left of dome) -->
+    <ellipse cx="230" cy="213" rx="36" ry="15"
+             fill="rgba(255,255,255,0.48)" filter="url(#specBlur)"/>
+
+    <!-- ── BODY SPECULAR HIGHLIGHT STREAK ────────────────────────── -->
+    <!-- Outer soft halo -->
+    <ellipse cx="215" cy="322" rx="36" ry="102"
+             fill="rgba(255,255,255,0.15)" filter="url(#specBlur)"/>
+    <!-- Tight bright core -->
+    <ellipse cx="212" cy="322" rx="14"  ry="82"
+             fill="rgba(255,255,255,0.46)" filter="url(#specBlur)"/>
+
+    <!-- ── RIM LIGHT (right edge bounce from background) ─────────── -->
+    <rect x="350" y="230" width="8" height="188"
+          fill="rgba(28,200,225,0.30)" filter="url(#rimBlur)"/>
+
+    <!-- ── LABEL BAND ─────────────────────────────────────────────── -->
+    <rect x="154" y="292" width="204" height="58" fill="url(#labelGrad)"/>
+    <rect x="180" y="304" width="62"  height="7"  rx="3.5" fill="rgba(255,255,255,0.52)"/>
+    <rect x="180" y="317" width="90"  height="7"  rx="3.5" fill="rgba(255,255,255,0.38)"/>
+    <rect x="180" y="330" width="46"  height="7"  rx="3.5" fill="rgba(255,255,255,0.24)"/>
+
+    <!--
+      ── NECK STUB ─────────────────────────────────────────────────────
+      Sits between the two pillars, below the ring.
+      Visible from ring bottom (y=170) to where shoulder engulfs it (≈y=194).
+      Drawn BEFORE pillars so pillars appear in front.
+    -->
+    <rect x="222" y="170" width="68" height="54" rx="12" fill="url(#neckGrad)"/>
+    <!-- Neck specular highlight -->
+    <ellipse cx="238" cy="193" rx="13" ry="20"
+             fill="rgba(255,255,255,0.36)" filter="url(#softBlur)"/>
+
+    <!--
+      ── PILLARS — two short cylindrical support posts ─────────────────
+      Left:  cx=194  (x=184 → 204),  y=170 → 214
+      Right: cx=318  (x=308 → 328),  y=170 → 214
+
+      They sit between ring bottom (y=170) and shoulder dome.
+      The pillarGrad is objectBoundingBox so it scales to each rect.
+    -->
+
+    <!-- Pillar contact shadows at shoulder (ambient occlusion) -->
+    <ellipse cx="194" cy="212" rx="12" ry="6"
+             fill="rgba(0,12,24,0.28)" filter="url(#softBlur)"/>
+    <ellipse cx="318" cy="212" rx="12" ry="6"
+             fill="rgba(0,12,24,0.28)" filter="url(#softBlur)"/>
+
+    <!-- Left pillar -->
+    <rect x="184" y="170" width="20" height="44" rx="8" fill="url(#pillarGrad)"/>
+    <!-- Left pillar specular -->
+    <ellipse cx="190" cy="191" rx="5" ry="16"
+             fill="rgba(255,255,255,0.40)" filter="url(#softBlur)"/>
+
+    <!-- Right pillar -->
+    <rect x="308" y="170" width="20" height="44" rx="8" fill="url(#pillarGrad)"/>
+    <!-- Right pillar specular -->
+    <ellipse cx="314" cy="191" rx="5" ry="16"
+             fill="rgba(255,255,255,0.40)" filter="url(#softBlur)"/>
+
+    <!--
+      ══ OVAL RING — flat torus, top element ═══════════════════════════
+      Drawn last so it appears on top of pillars and neck.
+
+      Shape: fill-rule="evenodd" donut punched from two ellipses.
+        Outer: cx=256 cy=148  rx=86 ry=22
+          Top (256,126) → Right (342,148) → Bottom (256,170) → Left (170,148)
+        Inner: cx=256 cy=148  rx=54 ry=12
+          Top (256,136) → Right (310,148) → Bottom (256,160) → Left (202,148)
+
+      Both paths wind clockwise (sweep-flag=1); evenodd punches the inner hole.
+    -->
+
+    <!-- Ring cast shadow on surface below it -->
+    <ellipse cx="256" cy="178" rx="90" ry="12"
+             fill="rgba(0,12,24,0.26)" filter="url(#softBlur)"/>
+
+    <!-- Ring body -->
+    <path fill-rule="evenodd"
+          fill="url(#ringGrad)"
+          d="M 256,126 A 86,22 0 0,1 342,148 A 86,22 0 0,1 256,170 A 86,22 0 0,1 170,148 A 86,22 0 0,1 256,126 Z
+             M 256,136 A 54,12 0 0,1 310,148 A 54,12 0 0,1 256,160 A 54,12 0 0,1 202,148 A 54,12 0 0,1 256,136 Z"/>
+
+    <!-- Ring top-face specular (bright spot on upper-left, where light hits) -->
+    <ellipse cx="220" cy="138" rx="28" ry="7"
+             fill="rgba(255,255,255,0.60)" filter="url(#softBlur)"/>
+
+    <!-- Ring outer front-rim edge highlight (top arc of outer ellipse) -->
+    <path d="M 256,126 A 86,22 0 0,1 342,148 A 86,22 0 0,1 256,170"
+          fill="none" stroke="rgba(255,255,255,0.28)"
+          stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Ring underside (bottom arc slightly darkened — peeking shadow) -->
+    <path d="M 256,170 A 86,22 0 0,1 170,148 A 86,22 0 0,1 256,126"
+          fill="none" stroke="rgba(0,16,36,0.22)"
+          stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Ring inner-hole rim (inner top arc, slight highlight) -->
+    <path d="M 256,136 A 54,12 0 0,1 310,148 A 54,12 0 0,1 256,160"
+          fill="none" stroke="rgba(255,255,255,0.18)"
+          stroke-width="2" stroke-linecap="round"/>
+
+  </g>
+
+</svg>

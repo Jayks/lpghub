@@ -144,6 +144,48 @@ describe("computeStockAdjustment — reduce/reserved", () => {
     expect(result.next.totalStock).toBe(BASE.totalStock);
     expect(result.next.deliveredStock).toBe(BASE.deliveredStock);
   });
+
+  it("returns a negative delta equal to −qty", () => {
+    const result = computeStockAdjustment(BASE, {
+      mode: "reduce", qty: 4, reduceType: "reserved",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.delta).toBe(-4);
+  });
+
+  it("allows reducing exactly all available stock (boundary)", () => {
+    // BASE.availableStock = 20
+    const result = computeStockAdjustment(BASE, {
+      mode: "reduce", qty: 20, reduceType: "reserved",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.next.availableStock).toBe(0);
+    expect(result.next.reservedStock).toBe(25);  // 5 + 20
+  });
+
+  it("rejects reducing more than available stock", () => {
+    // BASE.availableStock = 20
+    const result = computeStockAdjustment(BASE, {
+      mode: "reduce", qty: 21, reduceType: "reserved",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/only 20 available/i);
+  });
+
+  it("total stock stays the same for reserved (available → reserved is a relabel, not write-off)", () => {
+    const result = computeStockAdjustment(BASE, {
+      mode: "reduce", qty: 10, reduceType: "reserved",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // availableStock + reservedStock must equal the same pre-adjustment total (excl. delivered)
+    const beforeActive = BASE.availableStock + BASE.reservedStock;
+    const afterActive  = result.next.availableStock + result.next.reservedStock;
+    expect(afterActive).toBe(beforeActive);
+  });
 });
 
 // ─── REDUCE — damaged ─────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import pgClient from "@/lib/db/client";
 import {
@@ -10,6 +10,40 @@ import {
 } from "@/lib/db/schema";
 
 const db = drizzle(pgClient);
+
+// ─── Active cylinder count ────────────────────────────────────────────────────
+
+/**
+ * Returns the total number of cylinders the customer has committed to in
+ * open (non-terminal) orders. Used to enforce the eligibility limit across
+ * all active orders, not just the current one being placed.
+ *
+ * Terminal statuses excluded: delivered, cancelled, rejected, draft
+ */
+const ACTIVE_STATUSES = [
+  "pending_payment",
+  "payment_pending_confirmation",
+  "confirmed",
+  "assigned",
+  "out_for_delivery",
+] as const;
+
+export async function getActiveCylinderCount(customerId: string): Promise<number> {
+  const [result] = await db
+    .select({
+      total: sql<string>`COALESCE(SUM(${orderLineItems.quantity}), 0)`,
+    })
+    .from(orders)
+    .innerJoin(orderLineItems, eq(orderLineItems.orderId, orders.id))
+    .where(
+      and(
+        eq(orders.customerId, customerId),
+        inArray(orders.status, [...ACTIVE_STATUSES])
+      )
+    );
+
+  return Number(result?.total ?? 0);
+}
 
 // ─── Orders list ──────────────────────────────────────────────────────────────
 
