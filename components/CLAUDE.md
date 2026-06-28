@@ -42,7 +42,11 @@ Structure:
 Uses `isNavItemActive(pathname, href, exact?)` from `lib/utils/nav.ts`.
 
 ### `BottomNav`
-Mobile tab bar. 3–4 tabs per persona. Active state uses a Framer Motion spring pill (`layoutId="nav-pill"`, spring `stiffness: 500, damping: 35`). Active tab renders icon + label `relative z-10` over the absolute-positioned pill.
+Mobile tab bar. Active state uses a Framer Motion spring pill (`layoutId="nav-pill"`, spring `stiffness: 500, damping: 35`). Active tab renders icon + label `relative z-10` over the absolute-positioned pill. Uses `glass-nav` + `fixed bottom-0` for frosted blur effect.
+
+**Admin tabs (5):** Home · Customers · Orders · Payments (badge) · Deliveries (deliveryBadge). Accepts `urgentCount` + `deliveryUrgentCount` props (both threaded from AppShell).
+**Customer tabs (3):** Home · Orders · Settings.
+**Delivery tabs (2):** My Deliveries · Settings.
 
 **Home tab always uses `exact: true`** in `isNavItemActive`.
 
@@ -53,6 +57,9 @@ Mobile top bar (and desktop breadcrumb strip). Props: `title`, `backHref`, `brea
 - `resolvedBackHref` auto-derived from `breadcrumbs[length-2].href` — no need to pass `backHref` separately when using breadcrumbs.
 - Back button uses `router.push(resolvedBackHref)` — **never `router.back()`** — for deterministic history.
 - All nested admin pages use `<TopBar breadcrumbs={[...]} />` instead of a separate breadcrumb component.
+- **Positioning**: `fixed top-0 left-0 right-0` on mobile (z-40), `sticky top-0` on desktop (`md:sticky md:left-auto md:right-auto`). AppShell `<main>` has `pt-14 md:pt-0` to offset.
+- **Glass effect**: uses `glass-nav` class (0.55 opacity, blur 24px). Works because `globals.css` uses `overflow-x: clip` on html/body — do NOT change to `hidden`.
+- **Mobile right-side icons** (admin only): Inventory + Settings icon links (active = cyan), ThemeToggle (icon-only via `collapsed` prop), SignOutButton.
 
 ### `ThemeToggle`
 Light / Dark / System toggle. Uses `next-themes`. Renders as an icon button in the sidebar footer.

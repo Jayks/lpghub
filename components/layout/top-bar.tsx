@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { ArrowLeft, ChevronRight, Package, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { cn } from "@/lib/utils/cn";
@@ -22,6 +22,8 @@ interface TopBarProps {
 
 export function TopBar({ title, backHref, breadcrumbs, actions, className }: TopBarProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isAdmin = pathname.startsWith("/admin");
 
   // Auto-derive back href from breadcrumbs if not explicitly provided
   const resolvedBackHref =
@@ -33,7 +35,8 @@ export function TopBar({ title, backHref, breadcrumbs, actions, className }: Top
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 flex items-center gap-3 px-4 h-14 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/60",
+        "fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 h-14 glass-nav border-b border-slate-200/60 dark:border-slate-700/60",
+        "md:sticky md:left-auto md:right-auto",
         className
       )}
     >
@@ -86,9 +89,37 @@ export function TopBar({ title, backHref, breadcrumbs, actions, className }: Top
 
       <div className="flex items-center gap-1">
         {actions}
-        {/* Theme + sign-out visible on mobile; desktop uses sidebar */}
-        <div className="md:hidden flex items-center gap-1">
-          <ThemeToggle />
+        {/* Mobile-only top nav icons */}
+        <div className="md:hidden flex items-center gap-0.5">
+          {isAdmin && (
+            <>
+              <Link
+                href="/admin/inventory"
+                aria-label="Inventory"
+                className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-xl transition-colors",
+                  pathname.startsWith("/admin/inventory")
+                    ? "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                )}
+              >
+                <Package className="w-[18px] h-[18px]" />
+              </Link>
+              <Link
+                href="/admin/settings"
+                aria-label="Settings"
+                className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-xl transition-colors",
+                  pathname.startsWith("/admin/settings")
+                    ? "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                )}
+              >
+                <Settings className="w-[18px] h-[18px]" />
+              </Link>
+            </>
+          )}
+          <ThemeToggle collapsed />
           <SignOutButton variant="icon" />
         </div>
       </div>

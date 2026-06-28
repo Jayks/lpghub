@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Home,
-  LayoutDashboard,
   ShoppingCart,
   Users,
   CreditCard,
@@ -18,10 +17,11 @@ import { cn } from "@/lib/utils/cn";
 // ─── Nav config per persona ───────────────────────────────────────────────────
 
 const ADMIN_TABS = [
-  { href: "/admin",            label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/orders",     label: "Orders",    icon: ShoppingCart },
-  { href: "/admin/customers",  label: "Customers", icon: Users },
-  { href: "/admin/payments",   label: "Payments",  icon: CreditCard, badge: true },
+  { href: "/admin",             label: "Home",       icon: Home,         exact: true },
+  { href: "/admin/customers",   label: "Customers",  icon: Users },
+  { href: "/admin/orders",      label: "Orders",     icon: ShoppingCart },
+  { href: "/admin/payments",    label: "Payments",   icon: CreditCard,   badge: true },
+  { href: "/admin/deliveries",  label: "Deliveries", icon: Truck,        deliveryBadge: true },
 ];
 
 const CUSTOMER_TABS = [
@@ -40,8 +40,8 @@ type Tab = {
   label: string;
   icon: React.ElementType;
   exact?: boolean;
-  /** If true, show urgentCount as a badge dot */
-  badge?: boolean;
+  badge?: boolean;         // uses urgentCount (payments)
+  deliveryBadge?: boolean; // uses deliveryUrgentCount
 };
 
 function getTabs(pathname: string): Tab[] {
@@ -54,9 +54,10 @@ function getTabs(pathname: string): Tab[] {
 
 interface BottomNavProps {
   urgentCount?: number;
+  deliveryUrgentCount?: number;
 }
 
-export function BottomNav({ urgentCount = 0 }: BottomNavProps) {
+export function BottomNav({ urgentCount = 0, deliveryUrgentCount = 0 }: BottomNavProps) {
   const pathname = usePathname();
   const tabs = getTabs(pathname);
 
@@ -69,7 +70,9 @@ export function BottomNav({ urgentCount = 0 }: BottomNavProps) {
         {tabs.map((tab) => {
           const active = isNavItemActive(pathname, tab.href, tab.exact);
           const Icon = tab.icon;
-          const showBadge = tab.badge && urgentCount > 0;
+          const showBadge    = tab.badge         && urgentCount > 0;
+          const showDelBadge = tab.deliveryBadge && deliveryUrgentCount > 0;
+          const badgeCount   = showBadge ? urgentCount : deliveryUrgentCount;
           return (
             <Link
               key={tab.href}
@@ -92,9 +95,9 @@ export function BottomNav({ urgentCount = 0 }: BottomNavProps) {
                       : "text-slate-400 dark:text-slate-500"
                   )}
                 />
-                {showBadge && (
+                {(showBadge || showDelBadge) && (
                   <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none z-20">
-                    {urgentCount > 9 ? "9+" : urgentCount}
+                    {badgeCount > 9 ? "9+" : badgeCount}
                   </span>
                 )}
               </span>

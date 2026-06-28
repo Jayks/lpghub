@@ -13,10 +13,10 @@ export function AppShell({ children, urgentCount = 0, deliveryUrgentCount = 0 }:
   return (
     <div className="flex min-h-screen">
       <Sidebar urgentCount={urgentCount} deliveryUrgentCount={deliveryUrgentCount} />
-      <main className="flex-1 flex flex-col pb-safe-nav md:pb-0 overflow-x-hidden">
+      <main className="flex-1 flex flex-col pt-14 md:pt-0 pb-safe-nav md:pb-0 overflow-x-hidden">
         {children}
       </main>
-      <BottomNav urgentCount={urgentCount} />
+      <BottomNav urgentCount={urgentCount} deliveryUrgentCount={deliveryUrgentCount} />
     </div>
   );
 }
