@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/* ─── Use .dark CLASS for dark: variants (not prefers-color-scheme media query) ── */
+/* next-themes sets class="dark" on <html>; without this Tailwind v4 uses OS media  */
+/* query instead, causing dark: utilities to fire even when the user picked light.   */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── CSS Variables ──────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    --primary: #0891b2; /* cyan-600 */
+    --font-display: "Inter", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  html,
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ─── Light / Dark body gradients ───────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  background: linear-gradient(135deg, #eff6ff, #ecfeff, #f0fdfa, #ecfdf5);
+}
+
+.dark {
+  color-scheme: dark;
+  background: linear-gradient(135deg, #0d1b2a, #0a1f2c, #0a2228, #0c2024);
+}
+
+/* ─── Glass utilities — defined OUTSIDE @layer so they are not purged ────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+}
+
+.glass-sm {
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.20);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.20);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.80);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dark .glass-sm {
+  background: rgba(15, 23, 42, 0.70);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.dark .glass-nav {
+  background: rgba(13, 18, 30, 0.95);
+  backdrop-filter: saturate(150%) blur(20px);
+}
+
+/* ─── Safe-area utilities ────────────────────────────────────────────────────── */
+.h-nav-safe {
+  height: calc(4rem + env(safe-area-inset-bottom));
+}
+
+.pb-safe-nav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+.bottom-nav-safe {
+  bottom: calc(0px + env(safe-area-inset-bottom));
+}
+
+/* ─── Tabular numbers for amounts & counts ───────────────────────────────────── */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
