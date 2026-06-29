@@ -117,36 +117,40 @@ export type OrderPaymentDetail = {
 export async function getOrderPaymentDetail(
   orderId: string
 ): Promise<OrderPaymentDetail | null> {
-  // Load order + customer
-  const [row] = await db
-    .select({
-      orderId:      orders.id,
-      orderStatus:  orders.status,
-      totalAmount:  orders.totalAmount,
-      businessName: customers.businessName,
-      address:      customers.address,
-      paymentId:    payments.id,
-      paymentStatus: payments.status,
-      upiLink:      payments.upiLink,
-      paymentRef:   payments.paymentRef,
-    })
-    .from(orders)
-    .innerJoin(customers, eq(orders.customerId, customers.id))
-    .leftJoin(payments, eq(payments.orderId, orders.id))
-    .where(eq(orders.id, orderId));
+  // Both queries only need `orderId` (a parameter) — run in parallel.
+  const [orderRows, lines] = await Promise.all([
+    // Order + customer + payment (single join query)
+    db
+      .select({
+        orderId:       orders.id,
+        orderStatus:   orders.status,
+        totalAmount:   orders.totalAmount,
+        businessName:  customers.businessName,
+        address:       customers.address,
+        paymentId:     payments.id,
+        paymentStatus: payments.status,
+        upiLink:       payments.upiLink,
+        paymentRef:    payments.paymentRef,
+      })
+      .from(orders)
+      .innerJoin(customers, eq(orders.customerId, customers.id))
+      .leftJoin(payments, eq(payments.orderId, orders.id))
+      .where(eq(orders.id, orderId)),
 
+    // Line items
+    db
+      .select({
+        label:     cylinderTypes.label,
+        quantity:  orderLineItems.quantity,
+        unitPrice: orderLineItems.unitPrice,
+      })
+      .from(orderLineItems)
+      .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
+      .where(eq(orderLineItems.orderId, orderId)),
+  ]);
+
+  const row = orderRows[0];
   if (!row) return null;
-
-  // Load line items
-  const lines = await db
-    .select({
-      label:     cylinderTypes.label,
-      quantity:  orderLineItems.quantity,
-      unitPrice: orderLineItems.unitPrice,
-    })
-    .from(orderLineItems)
-    .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
-    .where(eq(orderLineItems.orderId, orderId));
 
   return {
     orderId:       row.orderId,

@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
@@ -63,6 +63,8 @@ export async function adjustInventoryAction(
 
     revalidatePath("/admin/inventory");
     revalidatePath("/admin");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("inventory", "max");
     return { ok: true };
   } catch (e) {
     console.error("[adjustInventoryAction]", e);

@@ -6,7 +6,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper";
 import { EmptyState } from "@/components/shared/empty-state";
 import { getCurrentUser } from "@/lib/db/queries/auth";
 import { getCustomerForUser } from "@/lib/db/queries/customers";
-import { getCustomerOrders } from "@/lib/db/queries/customer-orders";
+import { getRecentCustomerOrders } from "@/lib/db/queries/customer-orders";
 import { formatCurrency } from "@/lib/utils/format-currency";
 import { formatDate } from "@/lib/utils/format-date";
 import { formatOrderNumber } from "@/lib/utils/format-order-number";
@@ -28,7 +28,7 @@ export default async function CustomerHomePage() {
   const displayName = customer?.businessName ?? "there";
 
   const recentOrders = customer
-    ? (await getCustomerOrders(customer.id)).slice(0, 3)
+    ? await getRecentCustomerOrders(customer.id, 3)
     : [];
 
   return (

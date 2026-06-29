@@ -1,4 +1,5 @@
 import { inArray } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import pgClient from "@/lib/db/client";
 import { adminSettings } from "@/lib/db/schema";
@@ -26,17 +27,22 @@ export const SETTING_DEFAULTS: SettingsMap = {
   delivery_assignment_mode:      "manual",
 };
 
-export async function getSettings(): Promise<SettingsMap> {
-  const rows = await db
-    .select({ key: adminSettings.key, value: adminSettings.value })
-    .from(adminSettings)
-    .where(inArray(adminSettings.key, [...SETTING_KEYS]));
+// Cached until saveSettingsAction calls revalidateTag("settings").
+export const getSettings = unstable_cache(
+  async (): Promise<SettingsMap> => {
+    const rows = await db
+      .select({ key: adminSettings.key, value: adminSettings.value })
+      .from(adminSettings)
+      .where(inArray(adminSettings.key, [...SETTING_KEYS]));
 
-  const map = { ...SETTING_DEFAULTS };
-  for (const row of rows) {
-    if (row.key in map) {
-      map[row.key as SettingKey] = row.value;
+    const map = { ...SETTING_DEFAULTS };
+    for (const row of rows) {
+      if (row.key in map) {
+        map[row.key as SettingKey] = row.value;
+      }
     }
-  }
-  return map;
-}
+    return map;
+  },
+  ["settings"],
+  { tags: ["settings"], revalidate: 3600 },
+);

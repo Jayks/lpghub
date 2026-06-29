@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
@@ -12,7 +12,7 @@ const db = drizzle(pgClient);
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-// ─── Admin: confirm a payment ─────────────────────────────────────────────────
+// â”€â”€â”€ Admin: confirm a payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function confirmPaymentAction(
   paymentId: string,
@@ -44,8 +44,10 @@ export async function confirmPaymentAction(
     revalidatePath("/admin/payments");
     revalidatePath("/admin/orders");
     revalidatePath("/admin");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("admin-urgent", "max");
 
-    // Notify the customer — fire-and-forget
+    // Notify the customer â€” fire-and-forget
     try {
       const [orderRow] = await db
         .select({ authUserId: customers.authUserId })
@@ -54,7 +56,7 @@ export async function confirmPaymentAction(
         .where(eq(orders.id, orderId));
       if (orderRow?.authUserId) {
         await sendPushToUser(orderRow.authUserId, {
-          title: "Payment Confirmed ✅",
+          title: "Payment Confirmed âœ…",
           body: "Your payment has been verified. Your order is being prepared.",
           url: `/orders/${orderId}`,
         });
@@ -68,7 +70,7 @@ export async function confirmPaymentAction(
   }
 }
 
-// ─── Admin: reject a payment ──────────────────────────────────────────────────
+// â”€â”€â”€ Admin: reject a payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function rejectPaymentAction(
   paymentId: string,
@@ -88,7 +90,7 @@ export async function rejectPaymentAction(
       .set({ status: "rejected", updatedAt: sql`now()` })
       .where(eq(orders.id, orderId));
 
-    // Restore inventory — reserved_stock back to available_stock
+    // Restore inventory â€” reserved_stock back to available_stock
     const lines = await db
       .select({
         cylinderTypeId: orderLineItems.cylinderTypeId,
@@ -111,8 +113,11 @@ export async function rejectPaymentAction(
     revalidatePath("/admin/orders");
     revalidatePath("/admin/inventory");
     revalidatePath("/admin");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("admin-urgent", "max");
+    revalidateTag("inventory", "max");
 
-    // Notify the customer — fire-and-forget
+    // Notify the customer â€” fire-and-forget
     try {
       const [orderRow] = await db
         .select({ authUserId: customers.authUserId })
@@ -121,7 +126,7 @@ export async function rejectPaymentAction(
         .where(eq(orders.id, orderId));
       if (orderRow?.authUserId) {
         await sendPushToUser(orderRow.authUserId, {
-          title: "Payment Not Verified ❌",
+          title: "Payment Not Verified âŒ",
           body: "Your payment could not be verified. Please contact your agency.",
           url: `/orders/${orderId}`,
         });
@@ -135,7 +140,7 @@ export async function rejectPaymentAction(
   }
 }
 
-// ─── Customer: report payment made ───────────────────────────────────────────
+// â”€â”€â”€ Customer: report payment made â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function reportPaymentAction(
   orderId: string,
@@ -159,12 +164,13 @@ export async function reportPaymentAction(
 
     revalidatePath(`/orders`);
     revalidatePath(`/payments/${orderId}`);
+    revalidateTag("admin-urgent", "max");
 
-    // Notify admins — fire-and-forget
+    // Notify admins â€” fire-and-forget
     try {
       await sendPushToAllAdmins({
-        title: "Payment Reported 💰",
-        body: "A customer has reported a UPI payment — please verify.",
+        title: "Payment Reported ðŸ’°",
+        body: "A customer has reported a UPI payment â€” please verify.",
         url: "/admin/payments",
       });
     } catch { /* push is best-effort */ }

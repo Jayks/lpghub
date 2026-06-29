@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
@@ -35,7 +35,7 @@ export async function createOrderAction(
   // Resolve customer from auth user (phone fallback)
   const customer = await getCustomerForUser(user.id, user.phone);
   if (!customer) return { ok: false, error: "Customer account not found" };
-  if (!customer.isActive) return { ok: false, error: "Your account is not yet active — contact the agency" };
+  if (!customer.isActive) return { ok: false, error: "Your account is not yet active â€” contact the agency" };
 
   // Validate line inputs
   const selectedLines = lines.filter((l) => l.quantity > 0);
@@ -43,7 +43,7 @@ export async function createOrderAction(
 
   const totalQty = selectedLines.reduce((sum, l) => sum + l.quantity, 0);
 
-  // Count cylinders already committed in active orders — enforce limit across all orders
+  // Count cylinders already committed in active orders â€” enforce limit across all orders
   const activeCylinders = await getActiveCylinderCount(customer.id);
   if (totalQty + activeCylinders > customer.eligibilityLimit) {
     const remaining = customer.eligibilityLimit - activeCylinders;
@@ -56,7 +56,7 @@ export async function createOrderAction(
   }
 
   try {
-    // Fetch current prices and stock — source of truth is DB, not client
+    // Fetch current prices and stock â€” source of truth is DB, not client
     const stockRows = await db
       .select({
         cylinderTypeId: inventory.cylinderTypeId,
@@ -137,11 +137,14 @@ export async function createOrderAction(
 
     revalidatePath("/orders");
     revalidatePath("/admin/inventory");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("admin-urgent", "max");
+    revalidateTag("inventory", "max");
 
-    // Notify admins — fire-and-forget, never fails the action
+    // Notify admins â€” fire-and-forget, never fails the action
     try {
       await sendPushToAllAdmins({
-        title: "New Order 🛒",
+        title: "New Order ðŸ›’",
         body: `${customer.businessName} placed a new cylinder order.`,
         url: "/admin/orders",
       });
@@ -154,7 +157,7 @@ export async function createOrderAction(
   }
 }
 
-// ─── Customer: cancel a pending_payment order ─────────────────────────────────
+// â”€â”€â”€ Customer: cancel a pending_payment order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -178,11 +181,11 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult> 
     if (order.status !== "pending_payment") {
       return {
         ok: false,
-        error: "This order can no longer be cancelled — contact your agency admin",
+        error: "This order can no longer be cancelled â€” contact your agency admin",
       };
     }
 
-    // Restore inventory: reserved_stock → available_stock
+    // Restore inventory: reserved_stock â†’ available_stock
     const lines = await db
       .select({ cylinderTypeId: orderLineItems.cylinderTypeId, quantity: orderLineItems.quantity })
       .from(orderLineItems)
@@ -213,6 +216,9 @@ export async function cancelOrderAction(orderId: string): Promise<ActionResult> 
     revalidatePath(`/orders/${orderId}`);
     revalidatePath("/admin/inventory");
     revalidatePath("/admin/orders");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("admin-urgent", "max");
+    revalidateTag("inventory", "max");
     return { ok: true };
   } catch (e) {
     console.error("[cancelOrderAction]", e);

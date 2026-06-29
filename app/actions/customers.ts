@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
@@ -13,7 +13,7 @@ export type { CreateCustomerInput, UpdateCustomerInput } from "@/lib/schemas/cus
 
 const db = drizzle(pgClient);
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type CreateCustomerResult =
   | { ok: true; customerId: string }
@@ -23,7 +23,7 @@ export type UpdateCustomerResult =
   | { ok: true }
   | { ok: false; error: string };
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function createCustomerAction(
   input: CreateCustomerInput
@@ -65,6 +65,8 @@ export async function createCustomerAction(
     });
 
     revalidatePath("/admin/customers");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("customers-list", "max");
     return { ok: true, customerId: customer.id };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -103,6 +105,7 @@ export async function updateCustomerAction(
 
     revalidatePath(`/admin/customers/${customerId}`);
     revalidatePath("/admin/customers");
+    revalidateTag("customers-list", "max");
     return { ok: true };
   } catch (e) {
     console.error("[updateCustomerAction]", e);
@@ -124,5 +127,7 @@ export async function toggleCustomerActiveAction(
 
   revalidatePath(`/admin/customers/${customerId}`);
   revalidatePath("/admin/customers");
+  revalidateTag("admin-stats", "max");
+  revalidateTag("customers-list", "max");
   return { ok: true };
 }

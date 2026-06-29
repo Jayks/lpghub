@@ -2,6 +2,7 @@ import {
   count, sum, eq, lt, and, gte, lte, isNull, inArray,
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { unstable_cache } from "next/cache";
 import { startOfToday, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import pgClient from "@/lib/db/client";
 import {
@@ -22,8 +23,12 @@ const parseSum = (v: string | null | undefined): number =>
   parseFloat(v ?? "0") || 0;
 
 // ─── main query ───────────────────────────────────────────────────────────────
+// Cached for 60 s — invalidated by any mutation that changes counts or revenue.
+// revalidateTag("admin-stats") is called from: confirmPayment, rejectPayment,
+// createOrder, cancelOrder, markDelivered, assignDelivery, markOutForDelivery,
+// adjustInventory, createCustomer, toggleCustomerActive server actions.
 
-export async function getAdminStats() {
+const _getAdminStats = async () => {
   // Note: "today" and "this month" are computed in UTC.
   // Deployments in IST (UTC+5:30) will see a ~5.5 h offset — acceptable for a demo app.
   const todayStart    = startOfToday();
@@ -180,15 +185,24 @@ export async function getAdminStats() {
     // Inventory detail
     inventoryData,
   };
-}
+};
+
+export const getAdminStats = unstable_cache(
+  _getAdminStats,
+  ["admin-stats"],
+  { tags: ["admin-stats"], revalidate: 60 },
+);
 
 // ─── Lightweight urgent-count query for nav badges ────────────────────────────
 // Used by admin layout to show notification dots in the sidebar / bottom nav.
+// Cached for 30 s — invalidated by any mutation that changes pending counts.
+// revalidateTag("admin-urgent") is called from: confirmPayment, rejectPayment,
+// reportPayment, assignDelivery, createOrder, cancelOrder server actions.
 
-export async function getAdminUrgentCounts(): Promise<{
+const _getAdminUrgentCounts = async (): Promise<{
   payments: number;
   deliveries: number;
-}> {
+}> => {
   const [paymentsRow, deliveriesRow] = await Promise.all([
     db
       .select({ count: count() })
@@ -206,4 +220,10 @@ export async function getAdminUrgentCounts(): Promise<{
     payments:   paymentsRow[0]?.count   ?? 0,
     deliveries: deliveriesRow[0]?.count ?? 0,
   };
-}
+};
+
+export const getAdminUrgentCounts = unstable_cache(
+  _getAdminUrgentCounts,
+  ["admin-urgent"],
+  { tags: ["admin-urgent"], revalidate: 30 },
+);

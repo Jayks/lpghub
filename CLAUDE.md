@@ -495,17 +495,31 @@ CREATE POLICY "admins full access" ON orders
 ```
 
 ### Query caching pattern
+
+Several read-heavy query functions are wrapped in `unstable_cache`. See `lib/db/CLAUDE.md` for the full tag → action invalidation matrix.
+
 ```typescript
-export const getOrdersByCustomer = unstable_cache(
-  async (customerId: string) =>
-    db.select().from(orders).where(eq(orders.customerId, customerId)),
-  ["orders"],
-  { tags: [`orders-${customerId}`] }
+// lib/db/queries/example.ts
+export const getSomething = unstable_cache(
+  async (): Promise<Row[]> => db.select()...,
+  ["cache-key"],
+  { tags: ["my-tag"], revalidate: 60 },
 );
 
-// Invalidate on mutation
-revalidateTag(`orders-${customerId}`, "max");
+// lib/actions/example.ts — invalidate after mutation
+import { revalidatePath, revalidateTag } from "next/cache";
+revalidatePath("/admin/something");
+revalidateTag("my-tag", "max"); // always two args in Next.js 16
 ```
+
+**Active cached queries** (all admin-scoped, no user-level isolation needed):
+- `getAdminStats` — tag `"admin-stats"`, 60 s
+- `getAdminUrgentCounts` — tag `"admin-urgent"`, 30 s (called in admin layout on every nav)
+- `getInventoryWithTypes` — tag `"inventory"`, 120 s
+- `getCustomers` — tag `"customers-list"`, 120 s
+- `getSettings` — tag `"settings"`, 3600 s
+
+**Do not** wrap per-user queries (e.g. `getCustomerOrders`) in `unstable_cache` — use `revalidatePath` from actions instead (already done).
 
 ---
 

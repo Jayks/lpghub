@@ -136,37 +136,43 @@ export async function getCustomerOrderDetail(
 
   if (!order || order.customerId !== customerId) return null;
 
-  // Line items
-  const lineItems = await db
-    .select({
-      label:     cylinderTypes.label,
-      quantity:  orderLineItems.quantity,
-      unitPrice: orderLineItems.unitPrice,
-    })
-    .from(orderLineItems)
-    .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
-    .where(eq(orderLineItems.orderId, orderId));
+  // All three sub-queries only need `orderId` (a parameter) — run in parallel.
+  const [lineItems, paymentRows, deliveryRows] = await Promise.all([
+    // Line items
+    db
+      .select({
+        label:     cylinderTypes.label,
+        quantity:  orderLineItems.quantity,
+        unitPrice: orderLineItems.unitPrice,
+      })
+      .from(orderLineItems)
+      .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
+      .where(eq(orderLineItems.orderId, orderId)),
 
-  // Payment
-  const [payment] = await db
-    .select({
-      status:       payments.status,
-      paymentRef:   payments.paymentRef,
-      confirmedAt:  payments.adminConfirmedAt,
-    })
-    .from(payments)
-    .where(eq(payments.orderId, orderId));
+    // Payment
+    db
+      .select({
+        status:      payments.status,
+        paymentRef:  payments.paymentRef,
+        confirmedAt: payments.adminConfirmedAt,
+      })
+      .from(payments)
+      .where(eq(payments.orderId, orderId)),
 
-  // Delivery assignment
-  const [delivery] = await db
-    .select({
-      status:       deliveryAssignments.status,
-      assignedAt:   deliveryAssignments.assignedAt,
-      dispatchedAt: deliveryAssignments.dispatchedAt,
-      deliveredAt:  deliveryAssignments.deliveredAt,
-    })
-    .from(deliveryAssignments)
-    .where(eq(deliveryAssignments.orderId, orderId));
+    // Delivery assignment
+    db
+      .select({
+        status:       deliveryAssignments.status,
+        assignedAt:   deliveryAssignments.assignedAt,
+        dispatchedAt: deliveryAssignments.dispatchedAt,
+        deliveredAt:  deliveryAssignments.deliveredAt,
+      })
+      .from(deliveryAssignments)
+      .where(eq(deliveryAssignments.orderId, orderId)),
+  ]);
+
+  const payment  = paymentRows[0];
+  const delivery = deliveryRows[0];
 
   return {
     id:          order.id,
@@ -179,4 +185,58 @@ export async function getCustomerOrderDetail(
     payment:  payment  ?? null,
     delivery: delivery ?? null,
   };
+}
+
+// ─── Recent orders for home page ──────────────────────────────────────────────
+// Two-step: first fetch the N most recent order IDs (simple LIMIT), then fetch
+// their line items with a single IN query. Avoids pulling every order row when
+// the home page only needs 3 recent items.
+
+export async function getRecentCustomerOrders(
+  customerId: string,
+  limit: number
+): Promise<CustomerOrderRow[]> {
+  // Step 1: latest N orders — no join needed, small result
+  const recentOrders = await db
+    .select({
+      id:          orders.id,
+      orderNumber: orders.orderNumber,
+      status:      orders.status,
+      totalAmount: orders.totalAmount,
+      createdAt:   orders.createdAt,
+    })
+    .from(orders)
+    .where(eq(orders.customerId, customerId))
+    .orderBy(desc(orders.createdAt))
+    .limit(limit);
+
+  if (recentOrders.length === 0) return [];
+
+  // Step 2: line items for those orders — single IN query
+  const orderIds = recentOrders.map((o) => o.id);
+  const lineRows = await db
+    .select({
+      orderId:  orderLineItems.orderId,
+      label:    cylinderTypes.label,
+      quantity: orderLineItems.quantity,
+    })
+    .from(orderLineItems)
+    .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
+    .where(inArray(orderLineItems.orderId, orderIds));
+
+  // Build lines summary per order
+  const linesByOrder = new Map<string, string[]>();
+  for (const row of lineRows) {
+    if (!linesByOrder.has(row.orderId)) linesByOrder.set(row.orderId, []);
+    linesByOrder.get(row.orderId)!.push(`${row.quantity}× ${row.label}`);
+  }
+
+  return recentOrders.map((o) => ({
+    id:          o.id,
+    orderNumber: o.orderNumber,
+    status:      o.status,
+    totalAmount: o.totalAmount ?? "0",
+    createdAt:   o.createdAt,
+    linesSummary: linesByOrder.get(o.id)?.join(", ") ?? "",
+  }));
 }

@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
@@ -27,7 +27,7 @@ export async function saveSettingsAction(
   if (entries.length === 0) return { ok: true };
 
   try {
-    // Upsert each key individually — postgres.js + Drizzle doesn't support
+    // Upsert each key individually â€” postgres.js + Drizzle doesn't support
     // batched onConflictDoUpdate with different values per row cleanly.
     for (const [key, value] of entries) {
       await db
@@ -40,6 +40,7 @@ export async function saveSettingsAction(
     }
 
     revalidatePath("/admin/settings");
+    revalidateTag("settings", "max");
     return { ok: true };
   } catch (e) {
     console.error("[saveSettingsAction]", e);

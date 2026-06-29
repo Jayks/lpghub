@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { formatPhone } from "@/lib/utils/format-phone";
 import { drizzle } from "drizzle-orm/postgres-js";
 import pgClient from "@/lib/db/client";
@@ -16,20 +17,24 @@ export type CustomerRow = {
   createdAt: Date | null;
 };
 
-export async function getCustomers(): Promise<CustomerRow[]> {
-  return db
-    .select({
-      id: customers.id,
-      businessName: customers.businessName,
-      contactPerson: customers.contactPerson,
-      phone: customers.phone,
-      isActive: customers.isActive,
-      eligibilityLimit: customers.eligibilityLimit,
-      createdAt: customers.createdAt,
-    })
-    .from(customers)
-    .orderBy(desc(customers.createdAt));
-}
+// Cached — invalidated by createCustomer, updateCustomer, toggleCustomerActive actions.
+export const getCustomers = unstable_cache(
+  async (): Promise<CustomerRow[]> =>
+    db
+      .select({
+        id:               customers.id,
+        businessName:     customers.businessName,
+        contactPerson:    customers.contactPerson,
+        phone:            customers.phone,
+        isActive:         customers.isActive,
+        eligibilityLimit: customers.eligibilityLimit,
+        createdAt:        customers.createdAt,
+      })
+      .from(customers)
+      .orderBy(desc(customers.createdAt)),
+  ["customers-list"],
+  { tags: ["customers-list"], revalidate: 120 },
+);
 
 export async function getCustomerById(id: string) {
   const [customer] = await db
@@ -38,24 +43,27 @@ export async function getCustomerById(id: string) {
     .where(eq(customers.id, id));
   if (!customer) return null;
 
-  const deposits = await db
-    .select()
-    .from(cautionDeposits)
-    .where(eq(cautionDeposits.customerId, id))
-    .orderBy(desc(cautionDeposits.createdAt));
+  // Both sub-queries only need `id` (a parameter) — run in parallel.
+  const [deposits, orderHistory] = await Promise.all([
+    db
+      .select()
+      .from(cautionDeposits)
+      .where(eq(cautionDeposits.customerId, id))
+      .orderBy(desc(cautionDeposits.createdAt)),
 
-  const orderHistory = await db
-    .select({
-      id:          orders.id,
-      orderNumber: orders.orderNumber,
-      status:      orders.status,
-      totalAmount: orders.totalAmount,
-      createdAt:   orders.createdAt,
-    })
-    .from(orders)
-    .where(eq(orders.customerId, id))
-    .orderBy(desc(orders.createdAt))
-    .limit(20);
+    db
+      .select({
+        id:          orders.id,
+        orderNumber: orders.orderNumber,
+        status:      orders.status,
+        totalAmount: orders.totalAmount,
+        createdAt:   orders.createdAt,
+      })
+      .from(orders)
+      .where(eq(orders.customerId, id))
+      .orderBy(desc(orders.createdAt))
+      .limit(20),
+  ]);
 
   return { ...customer, deposits, orderHistory };
 }

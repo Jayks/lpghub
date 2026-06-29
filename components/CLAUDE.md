@@ -183,10 +183,17 @@ Delivered status takes effect immediately — no admin confirmation needed. Capt
 
 ## Auth Components — `components/auth/`
 
+### Auth Layout (`app/(auth)/layout.tsx`)
+- `min-h-[100dvh]` + `overflow-y-auto` — dynamic viewport height shrinks with keyboard; scroll container is unrestricted
+- Orbs in `fixed inset-0 overflow-hidden pointer-events-none z-0` — keeps orbs clipped without restricting scroll
+- ThemeToggle: `fixed top-3 right-3 z-20 glass-sm rounded-xl` with `collapsed` prop — visible against dark background, above form (z-20 > form z-10)
+
 ### `LoginForm`
 Role card selector (Customer / Delivery / Admin) with icon + label. Selecting a card switches the form below it.
 - Customer + Delivery cards: phone input → 6 split OTP digit boxes (auto-submit on 6th digit; auto-sends OTP when 10 digits entered; 30 s resend countdown; Enter key supported)
 - Admin card: email + password (Enter on email → focuses password; Enter on password → submits)
+- **Mobile keyboard UX**: every input has `onFocus={(e) => scrollToInput(e.currentTarget)}` calling `scrollIntoView({ behavior: "smooth", block: "center" })` so the active field is always visible above keyboard
+- **Compact mobile sizing**: card `p-5 sm:p-8`, spacing `space-y-4 sm:space-y-7`, logo `w-12 sm:w-16`, role cards `p-3 sm:p-4` — fits without scrolling on small screens
 - **Focus:** `useEffect` auto-focuses the first field whenever the tab changes (phone for Customer/Delivery; email for Admin)
 
 In test mode (`NEXT_PUBLIC_TEST_MODE=true`):

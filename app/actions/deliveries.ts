@@ -1,6 +1,6 @@
-"use server";
+﻿"use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 import pgClient from "@/lib/db/client";
@@ -19,7 +19,7 @@ const db = drizzle(pgClient);
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-// ─── Admin: assign a delivery person ─────────────────────────────────────────
+// â”€â”€â”€ Admin: assign a delivery person â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function assignDeliveryAction(
   orderId: string,
@@ -46,8 +46,10 @@ export async function assignDeliveryAction(
 
     revalidatePath("/admin/deliveries");
     revalidatePath("/admin/orders");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("admin-urgent", "max");
 
-    // Notify the customer — fire-and-forget
+    // Notify the customer â€” fire-and-forget
     try {
       const [orderRow] = await db
         .select({ authUserId: customers.authUserId })
@@ -56,7 +58,7 @@ export async function assignDeliveryAction(
         .where(eq(orders.id, orderId));
       if (orderRow?.authUserId) {
         await sendPushToUser(orderRow.authUserId, {
-          title: "Order Assigned 📦",
+          title: "Order Assigned ðŸ“¦",
           body: "Your order has been assigned to a delivery person.",
           url: `/orders/${orderId}`,
         });
@@ -70,7 +72,7 @@ export async function assignDeliveryAction(
   }
 }
 
-// ─── Delivery person: mark out for delivery ───────────────────────────────────
+// â”€â”€â”€ Delivery person: mark out for delivery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function markOutForDeliveryAction(
   assignmentId: string
@@ -94,7 +96,7 @@ export async function markOutForDeliveryAction(
         .where(eq(deliveryPersons.id, assignment.deliveryPersonId));
 
       if (!dp || dp.authUserId !== user.id) {
-        return { ok: false, error: "Unauthorized — this delivery is not assigned to you" };
+        return { ok: false, error: "Unauthorized â€” this delivery is not assigned to you" };
       }
     }
 
@@ -110,8 +112,10 @@ export async function markOutForDeliveryAction(
 
     revalidatePath(`/delivery/deliveries/${assignmentId}`);
     revalidatePath("/admin/deliveries");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("admin-urgent", "max");
 
-    // Notify the customer — fire-and-forget
+    // Notify the customer â€” fire-and-forget
     try {
       const [orderRow] = await db
         .select({ authUserId: customers.authUserId })
@@ -120,7 +124,7 @@ export async function markOutForDeliveryAction(
         .where(eq(orders.id, assignment.orderId));
       if (orderRow?.authUserId) {
         await sendPushToUser(orderRow.authUserId, {
-          title: "Out for Delivery 🚚",
+          title: "Out for Delivery ðŸšš",
           body: "Your cylinders are on the way!",
           url: `/orders/${assignment.orderId}`,
         });
@@ -134,7 +138,7 @@ export async function markOutForDeliveryAction(
   }
 }
 
-// ─── Delivery person: mark delivered ─────────────────────────────────────────
+// â”€â”€â”€ Delivery person: mark delivered â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function markDeliveredAction(
   assignmentId: string,
@@ -159,7 +163,7 @@ export async function markDeliveredAction(
         .where(eq(deliveryPersons.id, assignment.deliveryPersonId));
 
       if (!dp || dp.authUserId !== user.id) {
-        return { ok: false, error: "Unauthorized — this delivery is not assigned to you" };
+        return { ok: false, error: "Unauthorized â€” this delivery is not assigned to you" };
       }
     }
 
@@ -177,7 +181,7 @@ export async function markDeliveredAction(
       .set({ status: "delivered", updatedAt: sql`now()` })
       .where(eq(orders.id, assignment.orderId));
 
-    // Stock lifecycle: reserved_stock → delivered_stock
+    // Stock lifecycle: reserved_stock â†’ delivered_stock
     const lines = await db
       .select({
         cylinderTypeId: orderLineItems.cylinderTypeId,
@@ -199,8 +203,10 @@ export async function markDeliveredAction(
     revalidatePath(`/delivery/deliveries/${assignmentId}`);
     revalidatePath("/admin/deliveries");
     revalidatePath("/admin/inventory");
+    revalidateTag("admin-stats", "max");
+    revalidateTag("inventory", "max");
 
-    // Notify customer + admins — fire-and-forget
+    // Notify customer + admins â€” fire-and-forget
     try {
       const [orderRow] = await db
         .select({ authUserId: customers.authUserId })
@@ -209,13 +215,13 @@ export async function markDeliveredAction(
         .where(eq(orders.id, assignment.orderId));
       if (orderRow?.authUserId) {
         await sendPushToUser(orderRow.authUserId, {
-          title: "Delivered ✅",
+          title: "Delivered âœ…",
           body: "Your cylinders have been delivered. Thank you!",
           url: `/orders/${assignment.orderId}`,
         });
       }
       await sendPushToAllAdmins({
-        title: "Order Delivered 📦",
+        title: "Order Delivered ðŸ“¦",
         body: "A delivery has been completed.",
         url: "/admin/deliveries",
       });

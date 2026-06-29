@@ -132,21 +132,33 @@ Connection: Session Pooler URL (`DATABASE_URL`). `max: 3` connections, `prepare:
 
 ## Queries — `lib/db/queries/`
 
-All query functions are plain `async` functions (not `cache()`-wrapped by default). Wrap in `unstable_cache` at the call site when caching is needed.
+Several query functions are wrapped in `unstable_cache` (Next.js data cache). See the **Cache tags** section below for the full tag → action mapping.
 
 | File | Key exports |
 |---|---|
 | `auth.ts` | `getCurrentUser()` — React `cache()`-wrapped; reads Supabase user + role from `user_roles` |
-| `admin-stats.ts` | `getAdminStats()` — 15 parallel queries covering: needs-attention counts (pendingPayments, awaitingAssignment, pendingPaymentOrders, activeDeliveries, lowStockItems), today stats (deliveredToday, revenueToday), month stats (revenueThisMonth, revenueLastMonth, revenueTrend, ordersThisMonth, newCustomersThisMonth, pendingRevenue), inventoryData (all cylinder types with stock breakdown) |
-| `admin-order-detail.ts` | `getAdminOrderDetail(orderId)` — joins order + line items + payment + delivery assignment |
-| `customers.ts` | `getCustomers()`, `getCustomerById(id)`, `getCustomerByAuthUserId(userId)` |
-| `customer-orders.ts` | `getCustomerOrders(customerId)` — orders + line items for the customer view |
+| `admin-stats.ts` | `getAdminStats()` — **`unstable_cache`** (tag `"admin-stats"`, 60 s). 15 parallel queries: needs-attention counts, today stats, month stats, inventory data. `getAdminUrgentCounts()` — **`unstable_cache`** (tag `"admin-urgent"`, 30 s). 2 parallel queries for nav badge counts (payments + deliveries). |
+| `admin-order-detail.ts` | `getAdminOrderDetail(orderId)` — 1 query (order+customer) then 3 parallel (lineItems, payment, assignment) |
+| `customers.ts` | `getCustomers()` — **`unstable_cache`** (tag `"customers-list"`, 2 min). `getCustomerById(id)` — 1 query then 2 parallel (deposits + orderHistory). `getCustomerByAuthUserId(userId)`, `getCustomerForUser(authUserId, phone)` |
+| `customer-orders.ts` | `getCustomerOrders(customerId)` — all orders + line items (full list page). `getRecentCustomerOrders(customerId, limit)` — 2-step: LIMIT query then single IN for line items; use this on the home page. `getCustomerOrderDetail(orderId, customerId)` — 1 ownership check then 3 parallel (lineItems, payment, delivery). `getActiveCylinderCount(customerId)` |
 | `deliveries.ts` | `getUnassignedOrders()`, `getActiveDeliveries()`, `getDeliveryPersons()`, `getAllDeliveryPersons()`, `getDeliveryPersonById(id)`, `getMyDeliveries(authUserId)`, `getDeliveryDetail(assignmentId)` |
-| `inventory.ts` | `getInventory()` — all cylinder types joined with inventory; `getRecentAdjustments()` |
-| `orders.ts` | `getOrders(params)` — accepts `{ filter, q, from, to }`. `q` searches business name (ilike) OR exact order number (via `parseOrderSearch`). `from`/`to` are YYYY-MM-DD date strings filtered on `createdAt`. Old single-string signature still accepted for backwards compat. Also exports `getOrderById(id)`. |
-| `parse-order-search.ts` | `parseOrderSearch(raw)` — pure function, strips "ORD-" prefix, extracts numeric order number from search string. 14 unit tests in `parse-order-search.test.ts`. |
-| `payments.ts` | `getPendingPayments()` — orders in `payment_pending_confirmation` with payment row |
-| `settings.ts` | `getSettings()` — all rows from `admin_settings` as a key→value map |
+| `inventory.ts` | `getInventoryWithTypes()` — **`unstable_cache`** (tag `"inventory"`, 2 min). `getRecentAdjustments(limit?)` |
+| `orders.ts` | `getOrders(params)` — accepts `{ filter, q, from, to }`. `q` searches business name (ilike) OR exact order number (via `parseOrderSearch`). `from`/`to` are YYYY-MM-DD strings. |
+| `parse-order-search.ts` | `parseOrderSearch(raw)` — pure function, strips "ORD-" prefix, extracts numeric order number. 14 unit tests. |
+| `payments.ts` | `getPendingPayments()`, `getAwaitingPaymentOrders()`, `getPaymentHistory(limit?)`, `getOrderPaymentDetail(orderId)` — first query (order+customer+payment join) runs in parallel with line items query. |
+| `settings.ts` | `getSettings()` — **`unstable_cache`** (tag `"settings"`, 1 h) — all rows from `admin_settings` as a key→value map |
+
+### Cache tags — what invalidates what
+
+`revalidateTag(tag, "max")` is called from server actions whenever relevant data changes.
+
+| Tag | TTL | Invalidated by |
+|---|---|---|
+| `"admin-stats"` | 60 s | `confirmPayment`, `rejectPayment`, `createOrder`, `cancelOrder`, `markDelivered`, `assignDelivery`, `markOutForDelivery`, `adjustInventory`, `createCustomer`, `toggleCustomerActive` |
+| `"admin-urgent"` | 30 s | `confirmPayment`, `rejectPayment`, `reportPayment`, `assignDelivery`, `markOutForDelivery`, `createOrder`, `cancelOrder` |
+| `"inventory"` | 2 min | `adjustInventory`, `createOrder`, `cancelOrder`, `rejectPayment`, `markDelivered` |
+| `"customers-list"` | 2 min | `createCustomer`, `updateCustomer`, `toggleCustomerActive` |
+| `"settings"` | 1 h | `saveSettings` |
 
 ### `getCurrentUser()` — the canonical auth query
 
@@ -254,6 +266,24 @@ Three distinct clients — use the right one for the context:
 |---|---|---|
 | `send-push.ts` | `sendPushToUser(userId, payload)` | Queries `push_subscriptions`, calls `web-push` for each endpoint. **Dynamic import** of `web-push` required — static import crashes Turbopack. |
 | `subscribe.ts` | `subscribeToPush()` | Client-side: registers SW → calls `pushManager.subscribe()` → POSTs to `/api/push/subscribe` |
+
+---
+
+## DB Indexes — `drizzle/indexes.sql`
+
+21 performance indexes applied to Supabase. All are idempotent (`CREATE INDEX IF NOT EXISTS`) — safe to re-run.
+
+Key indexes (applied 2026-06-29):
+- `orders(customer_id)`, `orders(status)`, `orders(created_at DESC)`
+- `order_line_items(order_id)`
+- `payments(order_id)`, `payments(status)`, `payments(admin_confirmed_at DESC)`
+- `delivery_assignments(order_id)`, `(status)`, `(delivered_at DESC)`, `(delivery_person_id)`
+- `customers(auth_user_id)` — hot path, every customer page render
+- `delivery_persons(auth_user_id)` — hot path, every delivery page render
+- `user_roles(user_id)` — inside every `getCurrentUser()` call
+- `push_subscriptions(user_id)`, `inventory_adjustments(cylinder_type_id)`, `(created_at DESC)`
+
+**When adding new tables/queries:** add indexes here and apply via Supabase SQL editor.
 
 ---
 

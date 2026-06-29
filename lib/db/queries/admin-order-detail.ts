@@ -69,40 +69,46 @@ export async function getAdminOrderDetail(
 
   if (!row) return null;
 
-  const lineItems = await db
-    .select({
-      label:     cylinderTypes.label,
-      quantity:  orderLineItems.quantity,
-      unitPrice: orderLineItems.unitPrice,
-    })
-    .from(orderLineItems)
-    .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
-    .where(eq(orderLineItems.orderId, orderId));
+  // All three sub-queries only need `orderId` (a parameter) — run in parallel.
+  const [lineItems, paymentRows, assignRows] = await Promise.all([
+    db
+      .select({
+        label:     cylinderTypes.label,
+        quantity:  orderLineItems.quantity,
+        unitPrice: orderLineItems.unitPrice,
+      })
+      .from(orderLineItems)
+      .innerJoin(cylinderTypes, eq(orderLineItems.cylinderTypeId, cylinderTypes.id))
+      .where(eq(orderLineItems.orderId, orderId)),
 
-  const [payment] = await db
-    .select({
-      id:          payments.id,
-      status:      payments.status,
-      paymentRef:  payments.paymentRef,
-      confirmedAt: payments.adminConfirmedAt,
-    })
-    .from(payments)
-    .where(eq(payments.orderId, orderId));
+    db
+      .select({
+        id:          payments.id,
+        status:      payments.status,
+        paymentRef:  payments.paymentRef,
+        confirmedAt: payments.adminConfirmedAt,
+      })
+      .from(payments)
+      .where(eq(payments.orderId, orderId)),
 
-  const [assign] = await db
-    .select({
-      id:           deliveryAssignments.id,
-      status:       deliveryAssignments.status,
-      personName:   deliveryPersons.name,
-      personPhone:  deliveryPersons.phone,
-      assignedAt:   deliveryAssignments.assignedAt,
-      dispatchedAt: deliveryAssignments.dispatchedAt,
-      deliveredAt:  deliveryAssignments.deliveredAt,
-      remarks:      deliveryAssignments.remarks,
-    })
-    .from(deliveryAssignments)
-    .innerJoin(deliveryPersons, eq(deliveryAssignments.deliveryPersonId, deliveryPersons.id))
-    .where(eq(deliveryAssignments.orderId, orderId));
+    db
+      .select({
+        id:           deliveryAssignments.id,
+        status:       deliveryAssignments.status,
+        personName:   deliveryPersons.name,
+        personPhone:  deliveryPersons.phone,
+        assignedAt:   deliveryAssignments.assignedAt,
+        dispatchedAt: deliveryAssignments.dispatchedAt,
+        deliveredAt:  deliveryAssignments.deliveredAt,
+        remarks:      deliveryAssignments.remarks,
+      })
+      .from(deliveryAssignments)
+      .innerJoin(deliveryPersons, eq(deliveryAssignments.deliveryPersonId, deliveryPersons.id))
+      .where(eq(deliveryAssignments.orderId, orderId)),
+  ]);
+
+  const payment = paymentRows[0];
+  const assign  = assignRows[0];
 
   return {
     id:          row.id,
